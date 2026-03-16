@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Gōng Fū Tea Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1a1612;
+    --bg-card: #231f1a;
+    --bg-elevated: #2c2620;
+    --text: #e8ddd0;
+    --text-muted: #9a8b7a;
+    --text-dim: #6b5e50;
+    --accent: #c4956a;
+    --accent-glow: #d4a574;
+    --accent-dim: #8a6a48;
+    --green: #7a9e7e;
+    --red: #c47a6a;
+    --ring-bg: #2a2520;
+    --ring-track: #3a332c;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(196,149,106,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(122,158,126,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 440px;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 0 20px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 32px 0 12px;
+  }
+  header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: 1.6rem;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  header .sub {
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+
+  /* Screens */
+  .screen { display: none; flex-direction: column; flex: 1; }
+  .screen.active { display: flex; }
+
+  /* === TEA SELECTION SCREEN === */
+  .tea-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 16px 0;
+    flex: 1;
+  }
+
+  .tea-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(196,149,106,0.08);
+    border-radius: 14px;
+    padding: 18px 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .tea-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: var(--tea-color, var(--accent));
+    opacity: 0.6;
+    transition: opacity 0.3s;
+  }
+  .tea-card:hover, .tea-card:active {
+    border-color: rgba(196,149,106,0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .tea-card:hover::before { opacity: 1; }
+
+  .tea-card .emoji { font-size: 1.8rem; margin-bottom: 8px; display: block; }
+  .tea-card .name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+  .tea-card .meta {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+  }
+  .tea-card .meta span { color: var(--text-muted); }
+
+  /* === TIMER SCREEN === */
+  .timer-screen {
+    align-items: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .timer-middle {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .tea-info-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    margin: 12px 0;
+    width: 100%;
+    border: 1px solid rgba(196,149,106,0.06);
+  }
+  .tea-info-bar .emoji { font-size: 1.4rem; }
+  .tea-info-bar .info { flex: 1; }
+  .tea-info-bar .tea-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+  .tea-info-bar .tea-detail {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+  }
+  .btn-back {
+    background: none;
+    border: 1px solid rgba(196,149,106,0.15);
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+  }
+  .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Infusion pills */
+  .infusions-strip {
+    display: flex;
+    gap: 6px;
+    padding: 8px 0 16px;
+    width: 100%;
+    overflow-x: auto;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .inf-pill {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 500;
+    border: 1.5px solid var(--ring-track);
+    color: var(--text-dim);
+    background: transparent;
+    transition: all 0.3s;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .inf-pill.done {
+    background: rgba(122,158,126,0.15);
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .inf-pill.active {
+    background: rgba(196,149,106,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 12px rgba(196,149,106,0.2);
+    transform: scale(1.1);
+  }
+
+  /* Timer ring */
+  .timer-container {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    margin: 8px 0 20px;
+  }
+  .timer-ring {
+    width: 100%; height: 100%;
+    transform: rotate(-90deg);
+  }
+  .timer-ring .track {
+    fill: none;
+    stroke: var(--ring-track);
+    stroke-width: 5;
+  }
+  .timer-ring .progress {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.3s linear;
+    filter: drop-shadow(0 0 6px rgba(196,149,106,0.3));
+  }
+  .timer-ring .progress.done-anim {
+    stroke: var(--green);
+    filter: drop-shadow(0 0 8px rgba(122,158,126,0.4));
+  }
+
+  .timer-display {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .timer-display .time {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 3.8rem;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    line-height: 1;
+  }
+  .timer-display .label {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .btn-ctrl {
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-main {
+    width: 68px; height: 68px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 1.4rem;
+    box-shadow: 0 4px 20px rgba(196,149,106,0.3);
+  }
+  .btn-main:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 28px rgba(196,149,106,0.4);
+  }
+  .btn-main:active { transform: scale(0.97); }
+  .btn-main.running { background: var(--red); box-shadow: 0 4px 20px rgba(196,122,106,0.3); }
+
+  .btn-sec {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid rgba(196,149,106,0.1);
+    color: var(--text-muted);
+    font-size: 1rem;
+  }
+  .btn-sec:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: scale(1.05);
+  }
+
+  /* Bottom info */
+  .brew-params {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 0 24px;
+  }
+  .param-box {
+    text-align: center;
+    padding: 12px 8px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid rgba(196,149,106,0.05);
+  }
+  .param-box .val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.2rem;
+    color: var(--accent);
+    font-weight: 400;
+  }
+  .param-box .lbl {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* Custom tea modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid rgba(196,149,106,0.12);
+    border-radius: 16px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 380px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-size: 1.3rem;
+    color: var(--accent);
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid rgba(196,149,106,0.15);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--accent);
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .modal-btns button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    transition: all 0.2s;
+  }
+  .btn-cancel {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid rgba(196,149,106,0.1) !important;
+  }
+  .btn-confirm {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  .btn-confirm:hover { transform: translateY(-1px); }
+
+  /* Flashing animation for done */
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .timer-done .time {
+    color: var(--green);
+    animation: pulse-glow 1s ease-in-out infinite;
+  }
+
+  /* Smooth screen transitions */
+  .screen { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--ring-track); border-radius: 2px; }
+
+  /* Sound toggle */
+  .sound-toggle {
+    position: absolute;
+    top: 36px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    cursor: pointer;
+    z-index: 10;
+    transition: color 0.2s;
+  }
+  .sound-toggle:hover { color: var(--accent); }
+  .sound-toggle.muted { opacity: 0.4; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <button class="sound-toggle" id="soundToggle" title="Zvuk">🔔</button>
+
+  <header>
+    <h1>Gōng Fū Chá</h1>
+    <div class="sub">Tea Timer · 茶</div>
+  </header>
+
+  <!-- TEA SELECTION -->
+  <div class="screen active" id="screenSelect">
+    <div class="tea-grid" id="teaGrid"></div>
+  </div>
+
+  <!-- TIMER -->
+  <div class="screen" id="screenTimer">
+    <div class="timer-screen">
+      <div class="tea-info-bar">
+        <span class="emoji" id="timerEmoji"></span>
+        <div class="info">
+          <div class="tea-name" id="timerTeaName"></div>
+          <div class="tea-detail" id="timerTeaDetail"></div>
+        </div>
+        <button class="btn-back" id="btnBack">← Zpět</button>
+      </div>
+
+      <div class="timer-middle">
+        <div class="infusions-strip" id="infusionsStrip"></div>
+
+        <div class="timer-container" id="timerContainer">
+          <svg class="timer-ring" viewBox="0 0 260 260">
+            <circle class="track" cx="130" cy="130" r="115" />
+            <circle class="progress" id="progressRing" cx="130" cy="130" r="115" />
+          </svg>
+          <div class="timer-display" id="timerDisplay">
+            <div class="time" id="timerTime">0:00</div>
+            <div class="label" id="timerLabel">Louhování 1</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn-ctrl btn-sec" id="btnReset" title="Reset">↺</button>
+          <button class="btn-ctrl btn-main" id="btnStart" title="Start">▶</button>
+          <button class="btn-ctrl btn-sec" id="btnNext" title="Další louhování">⏭</button>
+        </div>
+      </div>
+
+      <div class="brew-params">
+        <div class="param-box">
+          <div class="val" id="paramTemp">—</div>
+          <div class="lbl">Teplota</div>
+        </div>
+        <div class="param-box">
+          <div class="val" id="paramRatio">—</div>
+          <div class="lbl">g / 100ml</div>
+        </div>
+        <div class="param-box">
+          <div class="val" id="paramInfusions">—</div>
+          <div class="lbl">Louhování</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM TEA MODAL -->
+<div class="modal-overlay" id="customModal">
+  <div class="modal">
+    <h2>Vlastní čaj</h2>
+    <div class="form-group">
+      <label>Název</label>
+      <input type="text" id="customName" placeholder="Můj čaj…">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Teplota (°C)</label>
+        <input type="number" id="customTemp" value="95" min="50" max="100">
+      </div>
+      <div class="form-group">
+        <label>g / 100ml</label>
+        <input type="number" id="customRatio" value="5" min="1" max="15" step="0.5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>1. louhování (s)</label>
+        <input type="number" id="customFirst" value="20" min="1" max="300">
+      </div>
+      <div class="form-group">
+        <label>Přírůstek (s)</label>
+        <input type="number" id="customIncrement" value="5" min="0" max="60">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Počet louhování</label>
+      <input type="number" id="customCount" value="8" min="1" max="20">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" id="btnCancelCustom">Zrušit</button>
+      <button class="btn-confirm" id="btnConfirmCustom">Spustit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// === TEA DATA ===
+const TEAS = [
+  {
+    id: 'green',
+    name: 'Zelený čaj',
+    emoji: '🍃',
+    color: '#7a9e7e',
+    temp: '75–80°C',
+    ratio: 4,
+    infusions: [30, 40, 50, 60, 70, 80, 90, 100],
+    desc: 'Lóng Jǐng, Bì Luó Chūn…'
+  },
+  {
+    id: 'white',
+    name: 'Bílý čaj',
+    emoji: '🤍',
+    color: '#d4c8b0',
+    temp: '85–90°C',
+    ratio: 4.5,
+    infusions: [20, 15, 20, 25, 30, 40, 50, 70, 90],
+    desc: 'Bái Háo Yín Zhēn, Bái Mǔ Dān…'
+  },
+  {
+    id: 'yellow',
+    name: 'Žlutý čaj',
+    emoji: '🌼',
+    color: '#c4b46a',
+    temp: '80–85°C',
+    ratio: 4,
+    infusions: [15, 15, 20, 25, 35, 50, 70],
+    desc: 'Jūn Shān Yín Zhēn…'
+  },
+  {
+    id: 'oolong_light',
+    name: 'Oolong světlý',
+    emoji: '🌿',
+    color: '#8ab88e',
+    temp: '90–95°C',
+    ratio: 5,
+    infusions: [20, 15, 20, 25, 30, 35, 45, 60, 80, 100],
+    desc: 'Tiě Guān Yīn, Āli Shān…'
+  },
+  {
+    id: 'oolong_dark',
+    name: 'Oolong tmavý',
+    emoji: '🍂',
+    color: '#b8864e',
+    temp: '95–100°C',
+    ratio: 6,
+    infusions: [10, 10, 15, 15, 20, 25, 30, 40, 60, 80],
+    desc: 'Dà Hóng Páo, Ròu Guì…'
+  },
+  {
+    id: 'red',
+    name: 'Červený (černý)',
+    emoji: '🔴',
+    color: '#c47a6a',
+    temp: '90–95°C',
+    ratio: 5,
+    infusions: [10, 10, 15, 15, 20, 30, 40, 60],
+    desc: 'Diān Hóng, Jīn Jùn Méi…'
+  },
+  {
+    id: 'sheng',
+    name: 'Shēng Pǔ\'ěr',
+    emoji: '🌱',
+    color: '#6b8c5a',
+    temp: '95–100°C',
+    ratio: 6,
+    infusions: [10, 8, 10, 12, 15, 20, 25, 35, 50, 70, 90, 120],
+    desc: 'Mladý i zralý shēng…'
+  },
+  {
+    id: 'shou',
+    name: 'Shóu Pǔ\'ěr',
+    emoji: '🪵',
+    color: '#7a5a3a',
+    temp: '100°C',
+    ratio: 6,
+    infusions: [10, 10, 10, 15, 15, 20, 25, 35, 50, 70, 90],
+    desc: 'Zralý fermentovaný Pǔ\'ěr…'
+  },
+  {
+    id: 'dancong',
+    name: 'Dān Cóng',
+    emoji: '🏔️',
+    color: '#c49a5a',
+    temp: '95–100°C',
+    ratio: 7,
+    infusions: [5, 5, 8, 10, 15, 20, 25, 35, 50, 70],
+    desc: 'Fènghuáng Dān Cóng…'
+  },
+  {
+    id: 'custom',
+    name: 'Vlastní čaj',
+    emoji: '⚙️',
+    color: '#9a8b7a',
+    temp: '—',
+    ratio: 5,
+    infusions: [],
+    desc: 'Nastav si parametry…'
+  }
+];
+
+// === STATE ===
+let state = {
+  currentTea: null,
+  currentInfusion: 0,
+  timeLeft: 0,
+  totalTime: 0,
+  running: false,
+  interval: null,
+  soundEnabled: true,
+  completedInfusions: []
+};
+
+// === AUDIO ===
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playChime() {
+  if (!state.soundEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    // Three-note gentle chime
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * 0.25);
+      gain.gain.linearRampToValueAtTime(0.15, now + i * 0.25 + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.25 + 0.8);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.25);
+      osc.stop(now + i * 0.25 + 0.8);
+    });
+  } catch(e) {}
+}
+
+function playTick() {
+  if (!state.soundEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.05, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+  } catch(e) {}
+}
+
+// === DOM ===
+const $ = id => document.getElementById(id);
+const teaGrid = $('teaGrid');
+const screenSelect = $('screenSelect');
+const screenTimer = $('screenTimer');
+const progressRing = $('progressRing');
+const timerTime = $('timerTime');
+const timerLabel = $('timerLabel');
+const timerContainer = $('timerContainer');
+const timerDisplay = $('timerDisplay');
+const infusionsStrip = $('infusionsStrip');
+
+// Ring circumference
+const RADIUS = 115;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+progressRing.style.strokeDasharray = CIRCUMFERENCE;
+progressRing.style.strokeDashoffset = 0;
+
+// === RENDER TEA GRID ===
+function renderTeaGrid() {
+  teaGrid.innerHTML = '';
+  TEAS.forEach(tea => {
+    const card = document.createElement('div');
+    card.className = 'tea-card';
+    card.style.setProperty('--tea-color', tea.color);
+    card.innerHTML = `
+      <span class="emoji">${tea.emoji}</span>
+      <div class="name">${tea.name}</div>
+      <div class="meta">
+        ${tea.id !== 'custom' ? `<span>${tea.temp}</span> · ${tea.ratio}g/100ml<br>${tea.infusions.length}× louhování` : tea.desc}
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      if (tea.id === 'custom') {
+        $('customModal').classList.add('active');
+      } else {
+        selectTea(tea);
+      }
+    });
+    teaGrid.appendChild(card);
+  });
+}
+
+// === SELECT TEA ===
+function selectTea(tea) {
+  state.currentTea = tea;
+  state.currentInfusion = 0;
+  state.completedInfusions = [];
+  state.running = false;
+  clearInterval(state.interval);
+
+  $('timerEmoji').textContent = tea.emoji;
+  $('timerTeaName').textContent = tea.name;
+  $('timerTeaDetail').textContent = tea.desc || '';
+  $('paramTemp').textContent = tea.temp;
+  $('paramRatio').textContent = tea.ratio + 'g';
+  $('paramInfusions').textContent = tea.infusions.length + '×';
+
+  renderInfusionPills();
+  setInfusion(0);
+
+  screenSelect.classList.remove('active');
+  screenTimer.classList.add('active');
+}
+
+function renderInfusionPills() {
+  infusionsStrip.innerHTML = '';
+  state.currentTea.infusions.forEach((sec, i) => {
+    const pill = document.createElement('div');
+    pill.className = 'inf-pill';
+    pill.textContent = i + 1;
+    pill.addEventListener('click', () => {
+      if (!state.running) {
+        state.completedInfusions = Array.from({length: i}, (_, k) => k);
+        setInfusion(i);
+      }
+    });
+    infusionsStrip.appendChild(pill);
+  });
+}
+
+function updatePills() {
+  const pills = infusionsStrip.querySelectorAll('.inf-pill');
+  pills.forEach((pill, i) => {
+    pill.classList.remove('done', 'active');
+    if (state.completedInfusions.includes(i)) pill.classList.add('done');
+    if (i === state.currentInfusion) pill.classList.add('active');
+  });
+}
+
+function setInfusion(idx) {
+  if (idx >= state.currentTea.infusions.length) {
+    // All done — wrap around or stay
+    idx = state.currentTea.infusions.length - 1;
+  }
+  state.currentInfusion = idx;
+  const sec = state.currentTea.infusions[idx];
+  state.totalTime = sec;
+  state.timeLeft = sec;
+  state.running = false;
+  clearInterval(state.interval);
+
+  updateTimerDisplay();
+  updatePills();
+  updateProgress(1);
+  timerLabel.textContent = `Louhování ${idx + 1}`;
+  timerDisplay.classList.remove('timer-done');
+  progressRing.classList.remove('done-anim');
+  $('btnStart').textContent = '▶';
+  $('btnStart').classList.remove('running');
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function updateTimerDisplay() {
+  timerTime.textContent = formatTime(state.timeLeft);
+}
+
+function updateProgress(fraction) {
+  // fraction: 1 = full, 0 = empty
+  const offset = CIRCUMFERENCE * (1 - fraction);
+  progressRing.style.strokeDashoffset = offset;
+}
+
+// === CONTROLS ===
+$('btnStart').addEventListener('click', () => {
+  // Wake audio context on user gesture
+  try { getAudioCtx().resume(); } catch(e) {}
+
+  if (state.running) {
+    // Pause
+    state.running = false;
+    clearInterval(state.interval);
+    $('btnStart').textContent = '▶';
+    $('btnStart').classList.remove('running');
+  } else {
+    // If timer finished, reset before starting
+    if (state.timeLeft <= 0) {
+      setInfusion(state.currentInfusion);
+    }
+    // Start
+    state.running = true;
+    $('btnStart').textContent = '⏸';
+    $('btnStart').classList.add('running');
+    state.interval = setInterval(tick, 1000);
+  }
+});
+
+$('btnReset').addEventListener('click', () => {
+  setInfusion(state.currentInfusion);
+});
+
+$('btnNext').addEventListener('click', () => {
+  if (state.currentInfusion < state.currentTea.infusions.length - 1) {
+    if (!state.completedInfusions.includes(state.currentInfusion)) {
+      state.completedInfusions.push(state.currentInfusion);
+    }
+    setInfusion(state.currentInfusion + 1);
+  }
+});
+
+$('btnBack').addEventListener('click', () => {
+  state.running = false;
+  clearInterval(state.interval);
+  screenTimer.classList.remove('active');
+  screenSelect.classList.add('active');
+});
+
+// Sound toggle
+$('soundToggle').addEventListener('click', () => {
+  state.soundEnabled = !state.soundEnabled;
+  $('soundToggle').textContent = state.soundEnabled ? '🔔' : '🔕';
+  $('soundToggle').classList.toggle('muted', !state.soundEnabled);
+});
+
+function tick() {
+  if (state.timeLeft > 0) {
+    state.timeLeft--;
+    updateTimerDisplay();
+    updateProgress(state.timeLeft / state.totalTime);
+
+    // Tick sound at last 3 seconds
+    if (state.timeLeft <= 3 && state.timeLeft > 0) playTick();
+
+    if (state.timeLeft <= 0) {
+      // Done!
+      state.running = false;
+      clearInterval(state.interval);
+      playChime();
+      timerDisplay.classList.add('timer-done');
+      progressRing.classList.add('done-anim');
+      $('btnStart').textContent = '▶';
+      $('btnStart').classList.remove('running');
+      timerLabel.textContent = 'Hotovo! ✓';
+
+      if (!state.completedInfusions.includes(state.currentInfusion)) {
+        state.completedInfusions.push(state.currentInfusion);
+      }
+      updatePills();
+
+      // Auto-advance after 3s
+      setTimeout(() => {
+        if (!state.running && state.currentInfusion < state.currentTea.infusions.length - 1) {
+          setInfusion(state.currentInfusion + 1);
+        }
+      }, 4000);
+    }
+  }
+}
+
+// === CUSTOM TEA MODAL ===
+$('btnCancelCustom').addEventListener('click', () => {
+  $('customModal').classList.remove('active');
+});
+
+$('btnConfirmCustom').addEventListener('click', () => {
+  const name = $('customName').value || 'Vlastní čaj';
+  const temp = $('customTemp').value + '°C';
+  const ratio = parseFloat($('customRatio').value) || 5;
+  const firstSec = parseInt($('customFirst').value) || 20;
+  const increment = parseInt($('customIncrement').value) || 5;
+  const count = parseInt($('customCount').value) || 8;
+
+  const infusions = [];
+  for (let i = 0; i < count; i++) {
+    infusions.push(firstSec + i * increment);
+  }
+
+  const customTea = {
+    id: 'custom_run',
+    name: name,
+    emoji: '🍵',
+    color: '#9a8b7a',
+    temp: temp,
+    ratio: ratio,
+    infusions: infusions,
+    desc: `${firstSec}s + ${increment}s / louhování`
+  };
+
+  $('customModal').classList.remove('active');
+  selectTea(customTea);
+});
+
+// Close modal on overlay click
+$('customModal').addEventListener('click', (e) => {
+  if (e.target === $('customModal')) {
+    $('customModal').classList.remove('active');
+  }
+});
+
+// === INIT ===
+renderTeaGrid();
+
+// Keep screen awake while timer running (if supported)
+let wakeLock = null;
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator && state.running) {
+      wakeLock = await navigator.wakeLock.request('screen');
+    }
+  } catch(e) {}
+}
+
+const origStart = $('btnStart').onclick;
+new MutationObserver(() => {
+  if (state.running) requestWakeLock();
+  else if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}).observe($('btnStart'), { attributes: true, childList: true, characterData: true });
+</script>
+</body>
+</html>
