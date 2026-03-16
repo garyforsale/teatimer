@@ -1,80 +1,694 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Gōng Fū Tea Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1a1612;
+    --bg-card: #231f1a;
+    --bg-elevated: #2c2620;
+    --text: #e8ddd0;
+    --text-muted: #9a8b7a;
+    --text-dim: #6b5e50;
+    --accent: #c4956a;
+    --accent-glow: #d4a574;
+    --accent-dim: #8a6a48;
+    --green: #7a9e7e;
+    --red: #c47a6a;
+    --ring-bg: #2a2520;
+    --ring-track: #3a332c;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(196,149,106,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(122,158,126,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 440px;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 0 20px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 32px 0 12px;
+  }
+  header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: 1.6rem;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  header .sub {
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+
+  /* Screens */
+  .screen { display: none; flex-direction: column; flex: 1; }
+  .screen.active { display: flex; }
+
+  /* === TEA SELECTION SCREEN === */
+  .tea-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 16px 0;
+    flex: 1;
+  }
+
+  .tea-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(196,149,106,0.08);
+    border-radius: 14px;
+    padding: 18px 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .tea-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+    background: var(--tea-color, var(--accent));
+    opacity: 0.6;
+    transition: opacity 0.3s;
+  }
+  .tea-card:hover, .tea-card:active {
+    border-color: rgba(196,149,106,0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .tea-card:hover::before { opacity: 1; }
+
+  .tea-card .emoji { font-size: 1.8rem; margin-bottom: 8px; display: block; }
+  .tea-card .name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+  .tea-card .meta {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+  }
+  .tea-card .meta span { color: var(--text-muted); }
+
+  /* === TIMER SCREEN === */
+  .timer-screen {
+    align-items: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .timer-middle {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .tea-info-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    margin: 12px 0;
+    width: 100%;
+    border: 1px solid rgba(196,149,106,0.06);
+  }
+  .tea-info-bar .emoji { font-size: 1.4rem; }
+  .tea-info-bar .info { flex: 1; }
+  .tea-info-bar .tea-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+  .tea-info-bar .tea-detail {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+  }
+  .btn-back {
+    background: none;
+    border: 1px solid rgba(196,149,106,0.15);
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+  }
+  .btn-back:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Infusion pills */
+  .infusions-strip {
+    display: flex;
+    gap: 6px;
+    padding: 8px 0 16px;
+    width: 100%;
+    overflow-x: auto;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .inf-pill {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 500;
+    border: 1.5px solid var(--ring-track);
+    color: var(--text-dim);
+    background: transparent;
+    transition: all 0.3s;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .inf-pill.done {
+    background: rgba(122,158,126,0.15);
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .inf-pill.active {
+    background: rgba(196,149,106,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 12px rgba(196,149,106,0.2);
+    transform: scale(1.1);
+  }
+
+  /* Timer ring */
+  .timer-container {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    margin: 8px 0 20px;
+  }
+  .timer-ring {
+    width: 100%; height: 100%;
+    transform: rotate(-90deg);
+  }
+  .timer-ring .track {
+    fill: none;
+    stroke: var(--ring-track);
+    stroke-width: 5;
+  }
+  .timer-ring .progress {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.3s linear;
+    filter: drop-shadow(0 0 6px rgba(196,149,106,0.3));
+  }
+  .timer-ring .progress.done-anim {
+    stroke: var(--green);
+    filter: drop-shadow(0 0 8px rgba(122,158,126,0.4));
+  }
+
+  .timer-display {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .timer-display .time {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 3.8rem;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    line-height: 1;
+  }
+  .timer-display .label {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .btn-ctrl {
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-main {
+    width: 68px; height: 68px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 1.4rem;
+    box-shadow: 0 4px 20px rgba(196,149,106,0.3);
+  }
+  .btn-main:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 28px rgba(196,149,106,0.4);
+  }
+  .btn-main:active { transform: scale(0.97); }
+  .btn-main.running { background: var(--red); box-shadow: 0 4px 20px rgba(196,122,106,0.3); }
+
+  .btn-sec {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid rgba(196,149,106,0.1);
+    color: var(--text-muted);
+    font-size: 1rem;
+  }
+  .btn-sec:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: scale(1.05);
+  }
+
+  /* Bottom info */
+  .brew-params {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 0 24px;
+  }
+  .param-box {
+    text-align: center;
+    padding: 12px 8px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid rgba(196,149,106,0.05);
+  }
+  .param-box .val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.2rem;
+    color: var(--accent);
+    font-weight: 400;
+  }
+  .param-box .lbl {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* Custom tea modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid rgba(196,149,106,0.12);
+    border-radius: 16px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 380px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-size: 1.3rem;
+    color: var(--accent);
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid rgba(196,149,106,0.15);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--accent);
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .modal-btns button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    transition: all 0.2s;
+  }
+  .btn-cancel {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid rgba(196,149,106,0.1) !important;
+  }
+  .btn-confirm {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  .btn-confirm:hover { transform: translateY(-1px); }
+
+  /* Flashing animation for done */
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .timer-done .time {
+    color: var(--green);
+    animation: pulse-glow 1s ease-in-out infinite;
+  }
+
+  /* Smooth screen transitions */
+  .screen { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--ring-track); border-radius: 2px; }
+
+  /* Sound toggle */
+  .sound-toggle {
+    position: absolute;
+    top: 36px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    cursor: pointer;
+    z-index: 10;
+    transition: color 0.2s;
+  }
+  .sound-toggle:hover { color: var(--accent); }
+  .sound-toggle.muted { opacity: 0.4; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <button class="sound-toggle" id="soundToggle" title="Zvuk">🔔</button>
+
+  <header>
+    <h1>Gōng Fū Chá</h1>
+    <div class="sub">Tea Timer · 茶</div>
+  </header>
+
+  <div class="screen active" id="screenSelect">
+    <div class="tea-grid" id="teaGrid"></div>
+  </div>
+
+  <div class="screen" id="screenTimer">
+    <div class="timer-screen">
+      <div class="tea-info-bar">
+        <span class="emoji" id="timerEmoji"></span>
+        <div class="info">
+          <div class="tea-name" id="timerTeaName"></div>
+          <div class="tea-detail" id="timerTeaDetail"></div>
+        </div>
+        <button class="btn-back" id="btnBack">← Zpět</button>
+      </div>
+
+      <div class="timer-middle">
+        <div class="infusions-strip" id="infusionsStrip"></div>
+
+        <div class="timer-container" id="timerContainer">
+          <svg class="timer-ring" viewBox="0 0 260 260">
+            <circle class="track" cx="130" cy="130" r="115" />
+            <circle class="progress" id="progressRing" cx="130" cy="130" r="115" />
+          </svg>
+          <div class="timer-display" id="timerDisplay">
+            <div class="time" id="timerTime">0:00</div>
+            <div class="label" id="timerLabel">Louhování 1</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn-ctrl btn-sec" id="btnReset" title="Reset">↺</button>
+          <button class="btn-ctrl btn-main" id="btnStart" title="Start">▶</button>
+          <button class="btn-ctrl btn-sec" id="btnNext" title="Další louhování">⏭</button>
+        </div>
+      </div>
+
+      <div class="brew-params">
+        <div class="param-box">
+          <div class="val" id="paramTemp">—</div>
+          <div class="lbl">Teplota</div>
+        </div>
+        <div class="param-box">
+          <div class="val" id="paramRatio">—</div>
+          <div class="lbl">g / 100ml</div>
+        </div>
+        <div class="param-box">
+          <div class="val" id="paramInfusions">—</div>
+          <div class="lbl">Louhování</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="customModal">
+  <div class="modal">
+    <h2>Vlastní čaj</h2>
+    <div class="form-group">
+      <label>Název</label>
+      <input type="text" id="customName" placeholder="Můj čaj…">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Teplota (°C)</label>
+        <input type="number" id="customTemp" value="95" min="50" max="100">
+      </div>
+      <div class="form-group">
+        <label>g / 100ml</label>
+        <input type="number" id="customRatio" value="5" min="1" max="15" step="0.5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>1. louhování (s)</label>
+        <input type="number" id="customFirst" value="20" min="1" max="300">
+      </div>
+      <div class="form-group">
+        <label>Přírůstek (s)</label>
+        <input type="number" id="customIncrement" value="5" min="0" max="60">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Počet louhování</label>
+      <input type="number" id="customCount" value="8" min="1" max="20">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" id="btnCancelCustom">Zrušit</button>
+      <button class="btn-confirm" id="btnConfirmCustom">Spustit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// === TEA DATA ===
+const TEAS = [
+  {
+    id: 'green',
+    name: 'Zelený čaj',
+    emoji: '🍃',
+    color: '#7a9e7e',
+    temp: '75–80°C',
+    ratio: 4,
+    infusions: [15, 10, 15, 20, 30, 45, 60, 90],
+    desc: 'Lóng Jǐng, Bì Luó Chūn…'
+  },
+  {
+    id: 'white',
+    name: 'Bílý čaj',
+    emoji: '🤍',
+    color: '#d4c8b0',
+    temp: '85–90°C',
+    ratio: 4.5,
+    infusions: [20, 15, 20, 25, 30, 40, 50, 70, 90],
+    desc: 'Bái Háo Yín Zhēn, Bái Mǔ Dān…'
+  },
+  {
+    id: 'yellow',
+    name: 'Žlutý čaj',
+    emoji: '🌼',
+    color: '#c4b46a',
+    temp: '80–85°C',
+    ratio: 4,
+    infusions: [15, 15, 20, 25, 35, 50, 70],
+    desc: 'Jūn Shān Yín Zhēn…'
+  },
+  {
+    id: 'oolong_light',
+    name: 'Oolong světlý',
+    emoji: '🌿',
+    color: '#8ab88e',
+    temp: '90–95°C',
+    ratio: 5,
+    infusions: [20, 15, 20, 25, 30, 35, 45, 60, 80, 100],
+    desc: 'Tiě Guān Yīn, Āli Shān…'
+  },
+  {
+    id: 'oolong_dark',
+    name: 'Oolong tmavý',
+    emoji: '🍂',
+    color: '#b8864e',
+    temp: '95–100°C',
+    ratio: 6,
+    infusions: [10, 10, 15, 15, 20, 25, 30, 40, 60, 80],
+    desc: 'Dà Hóng Páo, Ròu Guì…'
+  },
+  {
+    id: 'red',
+    name: 'Červený (černý)',
+    emoji: '🔴',
+    color: '#c47a6a',
+    temp: '90–95°C',
+    ratio: 5,
+    infusions: [10, 10, 15, 15, 20, 30, 40, 60],
+    desc: 'Diān Hóng, Jīn Jùn Méi…'
+  },
+  {
+    id: 'sheng',
+    name: 'Shēng Pǔ\'ěr',
+    emoji: '🌱',
+    color: '#6b8c5a',
+    temp: '95–100°C',
+    ratio: 6,
+    infusions: [10, 8, 10, 12, 15, 20, 25, 35, 50, 70, 90, 120],
+    desc: 'Mladý i zralý shēng…'
+  },
+  {
+    id: 'shou',
+    name: 'Shóu Pǔ\'ěr',
+    emoji: '🪵',
+    color: '#7a5a3a',
+    temp: '100°C',
+    ratio: 6,
+    infusions: [10, 10, 10, 15, 15, 20, 25, 35, 50, 70, 90],
+    desc: 'Zralý fermentovaný Pǔ\'ěr…'
+  },
+  {
+    id: 'dancong',
+    name: 'Dān Cóng',
+    emoji: '🏔️',
+    color: '#c49a5a',
+    temp: '95–100°C',
+    ratio: 7,
+    infusions: [5, 5, 8, 10, 15, 20, 25, 35, 50, 70],
+    desc: 'Fènghuáng Dān Cóng…'
+  },
+  {
+    id: 'custom',
+    name: 'Vlastní čaj',
+    emoji: '⚙️',
+    color: '#9a8b7a',
+    temp: '—',
+    ratio: 5,
+    infusions: [],
+    desc: 'Nastav si parametry…'
+  }
+];
+
+// === STATE ===
+let state = {
+  currentTea: null,
+  currentInfusion: 0,
+  timeLeft: 0,
+  totalTime: 0,
+  running: false,
+  interval: null,
+  soundEnabled: true,
+  completedInfusions: []
+};
+
 // === AUDIO (Web Audio API pro lepší podporu iOS) ===
-// (Base64 stringy SILENCE_WAV a CHIME_WAV a TICK_WAV si ponech z původního kódu)
-
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-const audioCtx = new AudioContext();
-
-let chimeBuffer = null;
-let tickBuffer = null;
-
-// Funkce pro dekódování base64 audia do bufferu
-async function loadSound(base64Data) {
-  try {
-    const response = await fetch(base64Data);
-    const arrayBuffer = await response.arrayBuffer();
-    return await audioCtx.decodeAudioData(arrayBuffer);
-  } catch (e) {
-    console.error("Chyba při načítání zvuku:", e);
-  }
-}
-
-// Přednačtení zvuků do paměti
-loadSound(CHIME_WAV).then(buffer => chimeBuffer = buffer);
-loadSound(TICK_WAV).then(buffer => tickBuffer = buffer);
-
-let audioUnlocked = false;
-
-function unlockAudio() {
-  if (audioUnlocked) return;
-  
-  // Probuzení AudioContextu na základě interakce uživatele (nutnost pro iOS)
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-
-  // Přehrání tichého oscilátoru pro definitivní odemčení audio session v Safari
-  const oscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  gainNode.gain.value = 0; // Zcela potichu
-  oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  oscillator.start(0);
-  oscillator.stop(0.1);
-
-  audioUnlocked = true;
-  console.log('Web Audio API odemčeno pro iOS');
-}
-
-// Odemknutí při PRVNÍ interakci uživatele
-['touchstart', 'touchend', 'click', 'mousedown'].forEach(evt => {
-  document.addEventListener(evt, unlockAudio, { once: true, passive: true });
-});
-
-// Univerzální funkce pro přehrání bufferu
-function playSound(buffer, volume) {
-  if (!state.soundEnabled || !buffer) return;
-  
-  // Ujištění, že je kontext aktivní
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-
-  const source = audioCtx.createBufferSource();
-  source.buffer = buffer;
-
-  const gainNode = audioCtx.createGain();
-  gainNode.gain.value = volume;
-
-  source.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  
-  source.start(0);
-}
-
-function playChime() {
-  playSound(chimeBuffer, 1.0);
-}
-
-function playTick() {
-  playSound(tickBuffer, 0.8);
-}
+const CHIME_WAV = 'data:audio/wav;base64,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
