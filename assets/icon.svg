@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="A warm bowl of tea">
+  <rect width="512" height="512" fill="#233e35"/>
+  <ellipse cx="256" cy="374" rx="116" ry="13" fill="#f5efe2" opacity=".2"/>
+  <path d="M126 274c10 68 52 103 130 103s120-35 130-103Z" fill="#f5efe2"/>
+  <ellipse cx="256" cy="274" rx="130" ry="29" fill="#f5efe2"/>
+  <ellipse cx="256" cy="271" rx="106" ry="16" fill="#b7955d"/>
+  <path d="M225 219c-33-35 30-49 2-89M279 209c-27-29 27-43 4-73" fill="none" stroke="#f5efe2" stroke-width="12" stroke-linecap="round" opacity=".9"/>
+  <path d="M327 151c0-25 15-39 42-44 0 26-15 41-42 44Z" fill="#b7955d"/>
+</svg>
