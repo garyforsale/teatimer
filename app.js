@@ -9,8 +9,10 @@ import {
   nextInfusion,
   restoreSession,
 } from "./engine.mjs";
+import { createTeaScene } from "./tea-scene.mjs";
 
 const $ = (id) => document.getElementById(id);
+const teaScene = createTeaScene($("teaScene"));
 const esc = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -376,6 +378,7 @@ function nl(value) {
 }
 function setView(next) {
   view = next;
+  teaScene.setVisible(next === "timer");
   $("workspace").dataset.view = next;
   document.querySelector(".app-shell").dataset.view = next;
   $("showCollection").setAttribute(
@@ -487,8 +490,13 @@ function updateClock() {
   const seconds = Math.ceil(session.remainingMs / 1000);
   $("timerTime").textContent = formatTime(seconds);
   $("timerTime").setAttribute("aria-label", `Zbývá ${secondsText(seconds)}`);
-  $("timerProgress").style.transform =
-    `scaleX(${session.remainingMs / (session.durations[session.index] * 1000)})`;
+  teaScene.update({
+    status: session.status,
+    progress:
+      1 - session.remainingMs / (session.durations[session.index] * 1000),
+    teaId: session.tea.id,
+    infusion: `${session.id}:${session.index}`,
+  });
   document.title =
     session.status === "running"
       ? `${formatTime(seconds)} · ${session.tea.name} — Gōng Fū Chá`

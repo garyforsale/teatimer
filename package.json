@@ -7,7 +7,7 @@
   "scripts": {
     "start": "python3 -m http.server 4173 --bind 127.0.0.1",
     "test": "node --test tests/engine.test.mjs",
-    "check": "node --check app.js && node --check engine.mjs && node --check sw.js"
+    "check": "node --check app.js && node --check engine.mjs && node --check tea-scene.mjs && node --check sw.js"
   },
   "engines": {
     "node": ">=20"

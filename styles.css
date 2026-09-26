@@ -512,7 +512,7 @@ input {
 
 /* The brewing view is a compact instrument, not a promotional card. */
 .timer-card {
-  padding: 24px 0 0;
+  padding: 20px 0 0;
   color: var(--ink);
 }
 .timer-card-top {
@@ -542,7 +542,7 @@ input {
   flex: none;
 }
 .preparation {
-  margin: 24px 0 0;
+  margin: 20px 0 0;
   padding: 15px 0;
   border-top: 1px solid #dfe2d9;
   border-bottom: 1px solid #dfe2d9;
@@ -605,7 +605,7 @@ input {
   appearance: none;
 }
 .timer-focus {
-  padding: 30px 0 24px;
+  padding: 16px 0 14px;
 }
 .timer-phase {
   display: flex;
@@ -623,37 +623,36 @@ input {
   font-weight: 400;
 }
 .timer-display {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 12px 0 22px;
+  position: relative;
+  height: 196px;
+  width: min(100%, 320px);
+  margin: -8px auto 0;
+  isolation: isolate;
+}
+#teaScene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 .timer-time {
-  display: block;
-  font: 300 clamp(82px, 25vw, 110px)/1.1 var(--sans);
+  position: absolute;
+  top: 49%;
+  left: 50%;
+  transform: translate(-50%, -6%);
+  font: 350 clamp(60px, 18vw, 72px)/1 var(--sans);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
-  letter-spacing: -6px;
-  color: #25392e;
-}
-.timer-track {
-  height: 3px;
-  background: #e0e5d9;
-  border-radius: 2px;
-  overflow: hidden;
-}
-#timerProgress {
-  height: 100%;
-  background: #829665;
-  transform-origin: left;
-  transition: transform 0.1s linear;
-  border-radius: 2px;
+  letter-spacing: -4px;
+  color: #293d30;
+  text-shadow: 0 1px 8px #fffbdf80;
+  pointer-events: none;
 }
 .time-adjust {
   display: flex;
   justify-content: center;
   gap: 12px;
-  margin-top: 17px;
+  margin-top: 2px;
 }
 .time-adjust button {
   min-width: 72px;
@@ -734,15 +733,12 @@ input {
 .timer-card[data-state="done"] .timer-time {
   color: #456d37;
 }
-.timer-card[data-state="done"] .timer-track {
-  background: #c4d6b3;
-}
 .infusions-heading {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin: 25px 0 12px;
+  margin: 16px 0 12px;
 }
 .infusions-heading h3 {
   font: 600 14px/1.4 var(--sans);
@@ -1239,13 +1235,14 @@ input {
     padding: 20px 0 18px;
   }
   .timer-display {
-    padding: 8px 0 13px;
+    height: 176px;
+    max-width: 288px;
   }
   .timer-time {
-    font-size: 86px;
+    font-size: 62px;
   }
   .time-adjust {
-    margin-top: 12px;
+    margin-top: 0;
   }
   .infusions-heading {
     margin-top: 16px;
@@ -1273,13 +1270,15 @@ input {
     padding: 16px 0 14px;
   }
   .timer-time {
-    font-size: 78px;
+    font-size: 50px;
+    letter-spacing: -3px;
   }
   .timer-display {
-    padding: 5px 0 10px;
+    height: 153px;
+    max-width: 245px;
   }
   .time-adjust {
-    margin-top: 10px;
+    margin-top: 0;
   }
   .start-button {
     min-height: 52px;

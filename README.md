@@ -7,6 +7,7 @@
 - Čajová sbírka pro ovládání palcem s hledáním bez diakritiky a oblíbenými čaji.
 - Vlastní uložené recepty, jejich úprava a smazání; nulový přírůstek času je podporovaný.
 - Přesný odpočet podle cílového času, pauza, ruční přechod na další nálev a úprava času po pěti sekundách.
+- Animovaný porcelánový šálek s modrým dekorem: rozvíjející se lístky, vlnění hladiny a barva podle druhu i průběhu nálevu. Pauza pohyb zastaví; omezení pohybu vypne dekorativní animaci.
 - Obnovení přípravy po reloadu. Přeskočený nálev se nepočítá jako dokončený.
 - Přepočet množství lístků podle objemu nádoby 50–1 000 ml.
 - Deník posledních 30 příprav s poznámkami a opakováním receptu.
@@ -49,6 +50,7 @@ Před vydáním také ověřte v prohlížeči: výběr → spuštění → pauz
 - `index.html`, `styles.css`: rozhraní a responzivní vzhled.
 - `app.js`: čajové profily, vykreslení, úložiště, deník, zvuky a ovládání.
 - `engine.mjs`: samostatné testovatelné jádro časovače.
+- `tea-scene.mjs`: lokální Canvas 2D animace, nejvýše 30 snímků za sekundu. Ve skryté kartě nebo mimo obrazovku se nevykresluje.
 - `sw.js`, `manifest.webmanifest`, `assets/`: offline aplikace, ikony a lokální média.
 
 ## Nasazení na GitHub Pages

@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Gōng Fū Chá · Čajový časovač",
   "short_name": "Čajový časovač",
-  "description": "Chvíle pro dobrý čaj. Gongfu časovač s čajovými profily, vlastními recepty a deníkem nálevů. Funguje i offline.",
+  "description": "Gongfu časovač s čajovými profily, vlastními recepty a deníkem nálevů. Funguje i offline.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
