@@ -91,6 +91,7 @@ function snapshotTea(tea) {
     }
     copy.color = tea.color;
   }
+  copy.rinse = tea.rinse === true;
   return copy;
 }
 
@@ -113,19 +114,24 @@ function ready(session, now) {
   return session;
 }
 
-export function createSession(tea, now = Date.now()) {
+export function createSession(tea, now = Date.now(), includeRinse = false) {
   const timestamp = time(now);
   const snapshot = snapshotTea(tea);
+  const rinse = includeRinse && snapshot.rinse;
+  const durations = rinse
+    ? [5, ...snapshot.infusions]
+    : [...snapshot.infusions];
   return {
+    rinse,
     id:
       globalThis.crypto?.randomUUID?.() ??
       `brew-${timestamp.toString(36)}-${Math.random().toString(36).slice(2)}`,
     tea: snapshot,
     index: 0,
-    durations: [...snapshot.infusions],
+    durations,
     completed: [],
     status: "ready",
-    remainingMs: snapshot.infusions[0] * 1000,
+    remainingMs: durations[0] * 1000,
     deadline: null,
     updatedAt: timestamp,
   };
@@ -194,24 +200,47 @@ export function selectInfusion(session, index, now = Date.now()) {
   return ready(session, timestamp);
 }
 
-/** Edits apply before a brew or after completion; pause retains exact progress. */
+/** Preserve elapsed time when editing an active or paused infusion. */
 export function adjustDuration(session, deltaSeconds, now = Date.now()) {
+  const timestamp = currentTime(session, now);
+  syncSession(session, timestamp);
+  if (!Number.isInteger(deltaSeconds)) return session;
+  const oldDuration = session.durations[session.index];
+  const duration = Math.min(
+    MAX_DURATION,
+    Math.max(MIN_DURATION, oldDuration + deltaSeconds),
+  );
+  const delta = (duration - oldDuration) * 1000;
+  if (!delta) return session;
+  session.durations[session.index] = duration;
+  if (session.status === "running" || session.status === "paused") {
+    session.remainingMs = Math.max(0, session.remainingMs + delta);
+    session.updatedAt = timestamp;
+    if (session.remainingMs === 0) {
+      session.status = "done";
+      session.deadline = null;
+      if (!session.completed.includes(session.index))
+        session.completed.push(session.index);
+    } else if (session.status === "running")
+      session.deadline = timestamp + session.remainingMs;
+    return session;
+  }
+  return resetInfusion(session, timestamp);
+}
+
+/** Add another infusion without changing the recipe or interrupting a running one. */
+export function addInfusion(session, now = Date.now()) {
   const timestamp = currentTime(session, now);
   syncSession(session, timestamp);
   if (
     session.status === "running" ||
     session.status === "paused" ||
-    !Number.isFinite(deltaSeconds) ||
-    !Number.isInteger(deltaSeconds)
+    session.durations.length >= MAX_INFUSIONS
   )
     return session;
-  const duration = Math.min(
-    MAX_DURATION,
-    Math.max(MIN_DURATION, session.durations[session.index] + deltaSeconds),
-  );
-  if (duration === session.durations[session.index]) return session;
-  session.durations[session.index] = duration;
-  return resetInfusion(session, timestamp);
+  session.durations.push(Math.min(MAX_DURATION, session.durations.at(-1) + 15));
+  session.index = session.durations.length - 1;
+  return ready(session, timestamp);
 }
 
 export function nextInfusion(session, now = Date.now()) {
@@ -241,7 +270,9 @@ export function restoreSession(raw, now = Date.now()) {
     const tea = snapshotTea(raw.tea);
     if (
       !Array.isArray(raw.durations) ||
-      raw.durations.length !== tea.infusions.length ||
+      raw.durations.length < 1 ||
+      raw.durations.length > MAX_INFUSIONS + (raw.rinse === true ? 1 : 0) ||
+      (raw.rinse === true && raw.durations.length < 2) ||
       !Array.from(raw.durations).every(isDuration) ||
       !Number.isInteger(raw.index) ||
       raw.index < 0 ||
@@ -283,6 +314,7 @@ export function restoreSession(raw, now = Date.now()) {
     )
       return null;
     const session = {
+      rinse: raw.rinse === true,
       id: raw.id,
       tea,
       index: raw.index,

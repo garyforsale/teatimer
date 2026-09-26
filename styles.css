@@ -1,3 +1,12 @@
+@font-face {
+  font-family: "Tea Calligraphy";
+  src: url("./assets/fonts/permanent-marker-timer.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0030-003A;
+}
+
 :root {
   color-scheme: light;
   --paper: #f6f4ed;
@@ -624,9 +633,9 @@ input {
 }
 .timer-display {
   position: relative;
-  height: 196px;
-  width: min(100%, 320px);
-  margin: -8px auto 0;
+  height: 148px;
+  width: min(100%, 260px);
+  margin: 0 auto;
   isolation: isolate;
 }
 #teaScene {
@@ -636,16 +645,17 @@ input {
   pointer-events: none;
 }
 .timer-time {
-  position: absolute;
-  top: 49%;
-  left: 50%;
-  transform: translate(-50%, -6%);
-  font: 350 clamp(60px, 18vw, 72px)/1 var(--sans);
+  display: block;
+  margin: 5px auto 0;
+  font:
+    400 78px/1 "Tea Calligraphy",
+    "Kaiti SC",
+    "STKaiti",
+    serif;
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-  letter-spacing: -4px;
-  color: #293d30;
-  text-shadow: 0 1px 8px #fffbdf80;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--ink);
   pointer-events: none;
 }
 .time-adjust {
@@ -1012,7 +1022,9 @@ input {
   font-weight: 500;
   min-width: 0;
 }
-.form-field input {
+.form-field input,
+.form-field select,
+.form-field textarea {
   width: 100%;
   min-height: 48px;
   padding: 11px 12px;
@@ -1217,6 +1229,213 @@ input {
   background: #e9eddf;
 }
 
+/* Settings and recipe controls share the existing bottom-sheet layout. */
+.settings-options {
+  display: grid;
+  gap: 0;
+  margin: 8px 0 18px;
+}
+.settings-options > label,
+.settings-option,
+.form-field:has(input[type="checkbox"]) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.settings-options input[type="checkbox"],
+.settings-option input[type="checkbox"],
+.form-field input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  flex: none;
+  accent-color: #4c6b3f;
+}
+.form-field input[type="color"] {
+  width: 100%;
+  padding: 5px;
+  min-height: 44px;
+}
+.form-field textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+select,
+textarea {
+  font: inherit;
+  color: var(--ink);
+  font-size: 16px;
+}
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #718255;
+  outline-offset: 3px;
+}
+#addInfusion {
+  display: block;
+  width: 100%;
+  margin: 8px 0 0;
+  border-top: 1px solid var(--line);
+}
+.journal-rating {
+  display: block;
+  margin: 12px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.journal-rating select,
+select.journal-rating {
+  min-height: 44px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.journal-delete {
+  float: right;
+  margin-top: 8px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #17211b;
+  --ink: #e6eadf;
+  --muted: #b1bca8;
+  --line: #3c4c3f;
+  --forest: #36533e;
+  --accent: #b3c997;
+  --surface: #253329;
+}
+:root[data-theme="dark"]
+  :is(
+    .text-button,
+    .timer-card-top p,
+    .param small,
+    .param > label,
+    .param strong > span,
+    .volume-label > span,
+    #timerStatus,
+    .time-adjust button,
+    .timer-secondary,
+    #infusionsCount,
+    .inf-pill,
+    .inf-duration,
+    .brew-advice summary,
+    .brew-tip,
+    #offlineStatus,
+    .mobile-tabs button,
+    .add-card,
+    .favorite-button,
+    .help-note p,
+    .guide-steps li > span
+  ) {
+  color: var(--muted);
+}
+:root[data-theme="dark"] :is(#timerLabel, .volume-label input) {
+  color: var(--ink);
+}
+:root[data-theme="dark"]
+  :is(
+    .preparation,
+    .param + .param,
+    .brew-advice,
+    .dialog,
+    .search-field,
+    .time-adjust button,
+    .secondary-button,
+    .journal-entry input
+  ) {
+  border-color: var(--line);
+}
+:root[data-theme="dark"]
+  :is(
+    .search-field,
+    .recipe-preview,
+    .help-note,
+    .count,
+    .filter.active,
+    .timer-hint
+  ) {
+  background: var(--surface);
+  color: var(--ink);
+}
+:root[data-theme="dark"] .tea-card {
+  background: #1e2b22;
+}
+:root[data-theme="dark"] :is(.tea-card.selected, .inf-pill.active) {
+  background: #30442f;
+  border-color: #718d60;
+  box-shadow: none;
+  color: #e0eacb;
+}
+:root[data-theme="dark"]
+  :is(
+    .tea-card.selected .tea-meta,
+    .tea-card.selected .tea-kind,
+    .selected-check,
+    .favorite-button[aria-pressed="true"],
+    .inf-pill.done:not(.active),
+    .mobile-tabs button[aria-pressed="true"],
+    .timer-card[data-state="done"] #timerStatus,
+    .timer-card[data-state="done"] .timer-time
+  ) {
+  color: #bed69f;
+}
+:root[data-theme="dark"]
+  :is(
+    .form-field input,
+    .form-field select,
+    .form-field textarea,
+    .journal-rating select,
+    select.journal-rating
+  ) {
+  background: #253329;
+  border-color: #51614c;
+  color: var(--ink);
+}
+:root[data-theme="dark"] input::placeholder {
+  color: #a4af9b;
+}
+:root[data-theme="dark"] .mobile-tabs {
+  background: #17211bf7;
+  border-color: var(--line);
+}
+:root[data-theme="dark"] .dialog::before {
+  background: #697b5b;
+}
+:root[data-theme="dark"] :is(.start-button, .primary-button) {
+  background: #b3c997;
+  color: #1c301e;
+}
+:root[data-theme="dark"] :is(.start-button, .primary-button):active {
+  background: #9fb785;
+}
+:root[data-theme="dark"]
+  :is(
+    .icon-button,
+    .add-card,
+    .favorite-button,
+    .inf-pill,
+    .secondary-button
+  ):active {
+  background: #34452e;
+}
+:root[data-theme="dark"] :is(.saved-indicator, .danger-button, .form-error) {
+  color: #f1b09a;
+}
+:root[data-theme="dark"] .settings-options input {
+  accent-color: #b3c997;
+}
+
 @media (max-height: 700px) {
   .site-header {
     min-height: 60px;
@@ -1235,11 +1454,11 @@ input {
     padding: 20px 0 18px;
   }
   .timer-display {
-    height: 176px;
-    max-width: 288px;
+    height: 114px;
+    max-width: 200px;
   }
   .timer-time {
-    font-size: 62px;
+    font-size: 68px;
   }
   .time-adjust {
     margin-top: 0;
@@ -1270,12 +1489,12 @@ input {
     padding: 16px 0 14px;
   }
   .timer-time {
-    font-size: 50px;
-    letter-spacing: -3px;
+    font-size: 58px;
+    letter-spacing: 0;
   }
   .timer-display {
-    height: 153px;
-    max-width: 245px;
+    height: 92px;
+    max-width: 162px;
   }
   .time-adjust {
     margin-top: 0;
@@ -1296,12 +1515,12 @@ input {
     gap: 8px;
   }
   .brand strong {
-    font-size: 21px;
+    font-size: 18px;
   }
   .brand-seal {
-    width: 32px;
-    height: 32px;
-    font-size: 23px;
+    width: 28px;
+    height: 28px;
+    font-size: 21px;
   }
   .header-actions {
     gap: 0;

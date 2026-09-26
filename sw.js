@@ -1,6 +1,6 @@
 /* Bump this version whenever the app shell changes. Updates activate only once
    the previous version's tabs close; a brewing timer is never reloaded. */
-const CACHE_VERSION = "2026-09-26-iphone-v4";
+const CACHE_VERSION = "2026-09-26-iphone-v5";
 const CACHE_PREFIX = `tea-timer:${self.registration.scope}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const APP_SHELL = [
@@ -9,7 +9,9 @@ const APP_SHELL = [
   "./styles.css",
   "./app.js",
   "./engine.mjs",
+  "./migration.mjs",
   "./tea-scene.mjs",
+  "./assets/fonts/permanent-marker-timer.ttf",
   "./manifest.webmanifest",
   "./assets/tea-still-life.webp",
   "./assets/icon.svg",
@@ -109,6 +111,22 @@ self.addEventListener("fetch", (event) => {
       return range && url.pathname.endsWith(".wav")
         ? rangeResponse(cached, range)
         : cached;
+    })(),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    (async () => {
+      const scope = self.registration.scope;
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      const existing = windows.find((client) => client.url.startsWith(scope));
+      if (existing) return existing.focus();
+      return self.clients.openWindow(scope);
     })(),
   );
 });

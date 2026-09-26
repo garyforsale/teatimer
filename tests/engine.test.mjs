@@ -9,6 +9,7 @@ import {
   selectInfusion,
   adjustDuration,
   nextInfusion,
+  addInfusion,
   restoreSession,
 } from "../engine.mjs";
 
@@ -78,15 +79,15 @@ test("pausing after the deadline finishes instead of creating a zero-time pause"
   assert.deepEqual(session.completed, [0]);
 });
 
-test("running selection, next and time edits cannot interrupt the brew", () => {
+test("running selection and next cannot interrupt; time edits extend the deadline", () => {
   const session = startSession(brew(), 1000);
   selectInfusion(session, 2, 2000);
   nextInfusion(session, 3000);
   adjustDuration(session, 5, 4000);
   assert.equal(session.index, 0);
   assert.equal(session.status, "running");
-  assert.equal(session.deadline, 31000);
-  assert.equal(session.durations[0], 30);
+  assert.equal(session.deadline, 36000);
+  assert.equal(session.durations[0], 35);
   assert.deepEqual(session.completed, []);
 });
 
@@ -154,8 +155,8 @@ test("duration edits clamp to bounds, ignore invalid values and keep paused prog
   startSession(session, 1000);
   pauseSession(session, 2000);
   adjustDuration(session, -5, 3000);
-  assert.equal(session.remainingMs, 3599000);
-  assert.equal(session.durations[0], 3600);
+  assert.equal(session.remainingMs, 3594000);
+  assert.equal(session.durations[0], 3595);
 });
 
 test("restore running session uses the saved deadline, including elapsed completion", () => {
@@ -334,4 +335,58 @@ test("creation rejects unusable recipes and invalid clocks", () => {
     restoreSession({ ...brew(), durations: new Array(3) }, 1000),
     null,
   );
+});
+
+test("active adjustments preserve exact elapsed time and survive restore", () => {
+  const session = startSession(brew(), 1000);
+  adjustDuration(session, 5, 1432);
+  assert.equal(session.remainingMs, 34568);
+  assert.equal(session.deadline, 36000);
+  assert.equal(restoreSession(session, 2000).remainingMs, 34000);
+  pauseSession(session, 2500);
+  adjustDuration(session, -5, 40000);
+  assert.equal(session.status, "paused");
+  assert.equal(session.remainingMs, 28500);
+  assert.equal(restoreSession(session, 50000).remainingMs, 28500);
+  startSession(session, 60000);
+  assert.equal(session.deadline, 88500);
+});
+
+test("shortening below elapsed time finishes exactly once without negative remaining", () => {
+  const session = startSession(brew(), 1000);
+  adjustDuration(session, -25, 10000);
+  assert.equal(session.remainingMs, 0);
+  assert.equal(session.status, "done");
+  assert.equal(session.deadline, null);
+  assert.deepEqual(session.completed, [0]);
+  syncSession(session, 100000);
+  assert.deepEqual(session.completed, [0]);
+  assert.notEqual(restoreSession(session, 100000), null);
+});
+
+test("rinse is optional, separate from the recipe, and survives reload", () => {
+  const recipe = { ...tea(), rinse: true };
+  const session = createSession(recipe, 1000, true);
+  assert.deepEqual(session.durations, [5, 30, 40, 50]);
+  assert.deepEqual(session.tea.infusions, [30, 40, 50]);
+  startSession(session, 1000);
+  const restored = restoreSession(session, 7000);
+  assert.equal(restored.rinse, true);
+  assert.deepEqual(restored.completed, [0]);
+  nextInfusion(restored, 7000);
+  assert.equal(restored.remainingMs, 30000);
+  assert.equal(createSession(recipe, 1000, false).rinse, false);
+});
+
+test("extra infusion keeps completed history and leaves recipe untouched", () => {
+  const session = startSession(brew(), 1000);
+  addInfusion(session, 2000);
+  assert.equal(session.durations.length, 3);
+  syncSession(session, 31000);
+  addInfusion(session, 32000);
+  assert.equal(session.index, 3);
+  assert.equal(session.remainingMs, 65000);
+  assert.deepEqual(session.completed, [0]);
+  assert.deepEqual(session.tea.infusions, [30, 40, 50]);
+  assert.deepEqual(restoreSession(session, 40000).durations, [30, 40, 50, 65]);
 });

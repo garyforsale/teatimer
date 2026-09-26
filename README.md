@@ -5,13 +5,13 @@
 ## Co umí
 
 - Čajová sbírka pro ovládání palcem s hledáním bez diakritiky a oblíbenými čaji.
-- Vlastní uložené recepty, jejich úprava a smazání; nulový přírůstek času je podporovaný.
-- Přesný odpočet podle cílového času, pauza, ruční přechod na další nálev a úprava času po pěti sekundách.
-- Animovaný porcelánový šálek s modrým dekorem: rozvíjející se lístky, vlnění hladiny a barva podle druhu i průběhu nálevu. Pauza pohyb zastaví; omezení pohybu vypne dekorativní animaci.
+- Vlastní recepty i úpravy výchozích profilů: jednotlivé časy nebo první čas a přírůstek, teplotní rozsah, popis, barva a volitelný oplach. Výchozí recept lze obnovit.
+- Přesný odpočet podle cílového času, pauza, úprava času i za běhu a přidání dalších nálevů. Volitelné automatické připravení dalšího nálevu jej samo nespustí.
+- Animovaný porcelánový šálek bez podšálku, s časem nad ním ve štětcovém písmu: rozvíjející se lístky, vlnění hladiny a čirá voda se postupně zabarvuje podle vybraného čaje. Každý nový nálev začíná čirý. Pauza pohyb zastaví; omezení pohybu vypne dekorativní animaci.
 - Obnovení přípravy po reloadu. Přeskočený nálev se nepočítá jako dokončený.
-- Přepočet množství lístků podle objemu nádoby 50–1 000 ml.
-- Deník posledních 30 příprav s poznámkami a opakováním receptu.
-- Zvukové upozornění, přepínač zvuku a Screen Wake Lock, pokud ho zařízení dovolí.
+- Přepočet množství lístků podle objemu nádoby 30–1 000 ml.
+- Deník až 500 příprav s poznámkami, hodnocením, mazáním a opakováním receptu. Importované staré záznamy bez receptu nelze opakovat.
+- Nastavení světlého/tmavého/systémového motivu, zvuku, tikání, vibrací, oznámení a Screen Wake Lock, pokud je zařízení podporuje.
 - Instalace na plochu a offline režim po prvním úplném načtení.
 - Ovládání klávesnicí, popsané ovládací prvky, nativní dialogy a respektování omezených animací.
 
@@ -38,7 +38,8 @@ Otevřete `http://127.0.0.1:4173`. ES moduly a service worker potřebují HTTP/H
 Node.js 20 nebo novější, bez instalace balíčků:
 
 ```sh
-node --test tests/engine.test.mjs
+npm test
+npm run check
 ```
 
 Testy pokrývají přesný čas při uspání stránky, pauzu, obnovení, ruční navigaci, skutečná dokončení, reset, úpravy času a poškozená data úložiště.
@@ -50,6 +51,7 @@ Před vydáním také ověřte v prohlížeči: výběr → spuštění → pauz
 - `index.html`, `styles.css`: rozhraní a responzivní vzhled.
 - `app.js`: čajové profily, vykreslení, úložiště, deník, zvuky a ovládání.
 - `engine.mjs`: samostatné testovatelné jádro časovače.
+- `migration.mjs`: jednorázové sloučení starých dat `gft.*` s novým úložištěm; současná příprava a nastavení mají přednost, původní klíče se nemažou.
 - `tea-scene.mjs`: lokální Canvas 2D animace, nejvýše 30 snímků za sekundu. Ve skryté kartě nebo mimo obrazovku se nevykresluje.
 - `sw.js`, `manifest.webmanifest`, `assets/`: offline aplikace, ikony a lokální média.
 
@@ -68,3 +70,5 @@ Odpočet se po návratu z pozadí přepočítá podle uloženého času. Prohlí
 ## Vizuální asset
 
 `assets/tea-still-life.webp` vznikl vestavěným Imagegenem pro tento projekt. Zadání: přirozená redakční fotografie celadonového gaiwanu, šálku jantarového oolongu a několika lístků na béžovém lnu, měkké odpolední světlo, slonová kost a tlumená zelená, bez textu a log. Zvukové soubory pocházejí z původní verze aplikace.
+
+Číslice používají lokální subset fontu [Permanent Marker](https://github.com/google/fonts/tree/main/apache/permanentmarker) (0–9 a dvojtečka). Licence Apache 2.0 je přiložená v `assets/fonts/LICENSE-PermanentMarker.txt`. Font funguje offline bez požadavků na Google.

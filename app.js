@@ -7,8 +7,14 @@ import {
   selectInfusion,
   adjustDuration,
   nextInfusion,
+  addInfusion,
   restoreSession,
 } from "./engine.mjs";
+import {
+  migrateLegacy,
+  normalizeSettings,
+  cleanArchivedJournal,
+} from "./migration.mjs";
 import { createTeaScene } from "./tea-scene.mjs";
 
 const $ = (id) => document.getElementById(id);
@@ -153,6 +159,14 @@ const TEAS = [
     tip: "Začněte nálevem dlouhým 5 sekund. Čaj ihned slijte.",
   },
 ];
+for (const tea of TEAS)
+  tea.rinse = [
+    "oolong_light",
+    "oolong_dark",
+    "sheng",
+    "shou",
+    "dancong",
+  ].includes(tea.id);
 const KEY = "gongfu-tea-v2";
 let storageAvailable = true;
 const tabId = crypto.randomUUID();
@@ -161,7 +175,12 @@ let owner = tabId;
 let saved = {};
 try {
   const raw = localStorage.getItem(KEY);
-  if (raw && raw.length < 500000) saved = JSON.parse(raw) || {};
+  if (raw && raw.length < 3000000) saved = JSON.parse(raw) || {};
+  saved = migrateLegacy(
+    (key) => localStorage.getItem(key),
+    raw === null ? null : saved,
+    TEAS,
+  );
 } catch {
   storageAvailable = false;
 }
@@ -176,7 +195,7 @@ const validTea = (tea) => {
   }
 };
 let customTeas = (Array.isArray(saved.customTeas) ? saved.customTeas : [])
-  .slice(0, 40)
+  .slice(0, 500)
   .map(validTea)
   .filter((tea) => tea?.id.startsWith("custom_"));
 customTeas = customTeas.filter(
@@ -188,37 +207,70 @@ let favorites = new Set(
     .slice(0, 100),
 );
 let volume =
-  Number.isInteger(saved.volume) && saved.volume >= 50 && saved.volume <= 1000
+  Number.isInteger(saved.volume) && saved.volume >= 30 && saved.volume <= 1000
     ? saved.volume
     : 100;
+let settings = normalizeSettings(saved.settings);
 let soundEnabled = saved.soundEnabled !== false;
+settings.sound = soundEnabled;
+let archivedHistory = cleanArchivedJournal(saved.archivedHistory);
+let legacyImported = saved.legacyImported === true;
+let deletedSessions = new Set(
+  Array.isArray(saved.deletedSessions)
+    ? saved.deletedSessions
+        .filter((id) => typeof id === "string")
+        .slice(0, 1000)
+    : [],
+);
+function cleanOverrides(raw) {
+  return Object.fromEntries(
+    TEAS.flatMap((tea) => {
+      const custom = validTea(raw?.[tea.id]);
+      return custom && custom.id === tea.id ? [[tea.id, custom]] : [];
+    }),
+  );
+}
+let overrides = cleanOverrides(saved.overrides);
+const newSession = (tea) => createSession(tea, Date.now(), settings.rinse);
+const completedCount = (brew) =>
+  brew.completed.filter((index) => !brew.rinse || index !== 0).length;
+const infusionCount = (brew) => brew.durations.length - (brew.rinse ? 1 : 0);
+const infusionLabel = (brew, index = brew.index) =>
+  brew.rinse && index === 0
+    ? "Oplach"
+    : `${index + 1 - (brew.rinse ? 1 : 0)}. nálev`;
 let history = (Array.isArray(saved.history) ? saved.history : [])
-  .slice(0, 30)
+  .slice(0, 500)
   .flatMap((item) => {
     const snapshot = restoreSession(item?.session);
     return snapshot &&
       Number.isSafeInteger(item.at) &&
       Number.isFinite(new Date(item.at).getTime()) &&
       item.at > 0 &&
-      snapshot.completed.length
+      completedCount(snapshot)
       ? [
           {
             session: snapshot,
             at: item.at,
             volume:
               Number.isInteger(item.volume) &&
-              item.volume >= 50 &&
+              item.volume >= 30 &&
               item.volume <= 1000
                 ? item.volume
                 : 100,
-            note: typeof item.note === "string" ? item.note.slice(0, 240) : "",
+            note: typeof item.note === "string" ? item.note.slice(0, 2000) : "",
+            rating: Number.isInteger(item.rating)
+              ? Math.max(0, Math.min(5, item.rating))
+              : 0,
           },
         ]
       : [];
   });
 let session =
   restoreSession(saved.session) ||
-  createSession(TEAS.find((tea) => tea.id === "oolong_light"));
+  newSession(
+    overrides.oolong_light || TEAS.find((tea) => tea.id === "oolong_light"),
+  );
 let filter = "all";
 let query = "";
 let view =
@@ -233,9 +285,26 @@ let wakeLock = null;
 let wakeRequestPending = false;
 let lastSecond = null;
 
-const chime = new Audio("./assets/chime.wav");
-const tickSound = new Audio("./assets/tick.wav");
-const silence = new Audio("./assets/silence.wav");
+function makeAudio(src) {
+  const audio = new Audio();
+  audio.dataset.url = src;
+  audio.preload = "auto";
+  fetch(src)
+    .then((response) => {
+      if (!response.ok) throw new Error("Audio unavailable");
+      return response.blob();
+    })
+    .then((blob) => {
+      if (!audio.src) audio.src = URL.createObjectURL(blob);
+    })
+    .catch(() => {
+      if (!audio.src) audio.src = src;
+    });
+  return audio;
+}
+const chime = makeAudio("./assets/chime.wav");
+const tickSound = makeAudio("./assets/tick.wav");
+const silence = makeAudio("./assets/silence.wav");
 silence.loop = true;
 silence.volume = 0.01;
 let audioUnlocked = false;
@@ -262,7 +331,7 @@ function applyExternal(data) {
   owner = typeof data.owner === "string" ? data.owner : "";
   session = restored;
   customTeas = (Array.isArray(data.customTeas) ? data.customTeas : [])
-    .slice(0, 40)
+    .slice(0, 500)
     .map(validTea)
     .filter((tea) => tea?.id.startsWith("custom_"));
   favorites = new Set(
@@ -271,31 +340,47 @@ function applyExternal(data) {
       .slice(0, 100),
   );
   volume =
-    Number.isInteger(data.volume) && data.volume >= 50 && data.volume <= 1000
+    Number.isInteger(data.volume) && data.volume >= 30 && data.volume <= 1000
       ? data.volume
       : 100;
   soundEnabled = data.soundEnabled !== false;
+  settings = normalizeSettings(data.settings);
+  settings.sound = soundEnabled;
+  overrides = cleanOverrides(data.overrides);
+  archivedHistory = cleanArchivedJournal(data.archivedHistory);
+  legacyImported = data.legacyImported === true;
+  deletedSessions = new Set(
+    Array.isArray(data.deletedSessions)
+      ? data.deletedSessions
+          .filter((id) => typeof id === "string")
+          .slice(0, 1000)
+      : [],
+  );
+  applyTheme();
   history = (Array.isArray(data.history) ? data.history : [])
-    .slice(0, 30)
+    .slice(0, 500)
     .flatMap((item) => {
       const snapshot = restoreSession(item?.session);
       return snapshot &&
         Number.isSafeInteger(item.at) &&
         Number.isFinite(new Date(item.at).getTime()) &&
         item.at > 0 &&
-        snapshot.completed.length
+        completedCount(snapshot)
         ? [
             {
               session: snapshot,
               at: item.at,
               volume:
                 Number.isInteger(item.volume) &&
-                item.volume >= 50 &&
+                item.volume >= 30 &&
                 item.volume <= 1000
                   ? item.volume
                   : 100,
               note:
-                typeof item.note === "string" ? item.note.slice(0, 240) : "",
+                typeof item.note === "string" ? item.note.slice(0, 2000) : "",
+              rating: Number.isInteger(item.rating)
+                ? Math.max(0, Math.min(5, item.rating))
+                : 0,
             },
           ]
         : [];
@@ -307,7 +392,7 @@ function applyExternal(data) {
   renderSound();
   renderCollection();
   renderTimer();
-  $("journalCount").textContent = history.length;
+  $("journalCount").textContent = history.length + archivedHistory.length;
   if ($("journalDialog").open) renderJournal();
   return true;
 }
@@ -316,7 +401,7 @@ function save(releaseOwnership = false, claimOwnership = false) {
     const latest = localStorage.getItem(KEY);
     let latestData = null;
     try {
-      if (latest && latest.length < 500000) latestData = JSON.parse(latest);
+      if (latest && latest.length < 3000000) latestData = JSON.parse(latest);
     } catch {}
     if (latestData && applyExternal(latestData)) return;
     revision = Math.max(Date.now(), revision + 1);
@@ -333,6 +418,11 @@ function save(releaseOwnership = false, claimOwnership = false) {
         favorites: [...favorites],
         volume,
         soundEnabled,
+        settings,
+        overrides,
+        archivedHistory,
+        deletedSessions: [...deletedSessions].slice(-1000),
+        legacyImported,
         history,
         session,
       }),
@@ -349,7 +439,10 @@ function save(releaseOwnership = false, claimOwnership = false) {
     : "Ukládání není dostupné";
 }
 function allTeas() {
-  return [...TEAS, ...customTeas];
+  return [
+    ...TEAS.map((tea) => ({ ...tea, ...overrides[tea.id] })),
+    ...customTeas,
+  ];
 }
 function metadata(tea) {
   return (
@@ -467,7 +560,7 @@ function requestTea(tea) {
     return;
   }
   const change = () => {
-    session = createSession(tea);
+    session = newSession(tea);
     lastSecond = null;
     releaseAwake();
     stopSilence();
@@ -495,6 +588,7 @@ function updateClock() {
     progress:
       1 - session.remainingMs / (session.durations[session.index] * 1000),
     teaId: session.tea.id,
+    teaColor: session.tea.color,
     infusion: `${session.id}:${session.index}`,
   });
   document.title =
@@ -518,17 +612,17 @@ function renderPills() {
   session.durations.forEach((seconds, index) => {
     const button = document.createElement("button");
     button.className = `inf-pill${index === session.index ? " active" : ""}${session.completed.includes(index) ? " done" : ""}`;
-    button.innerHTML = `<span class="inf-number">${session.completed.includes(index) ? "✓" : index + 1}</span><span class="inf-duration">${seconds} s</span>`;
+    button.innerHTML = `<span class="inf-number">${session.completed.includes(index) ? "✓" : session.rinse && index === 0 ? "O" : index + 1 - (session.rinse ? 1 : 0)}</span><span class="inf-duration">${seconds} s</span>`;
     button.setAttribute(
       "aria-label",
-      `${index + 1}. nálev, ${seconds} sekund${session.completed.includes(index) ? ", hotovo" : ""}`,
+      `${infusionLabel(session, index)}, ${seconds} sekund${session.completed.includes(index) ? ", hotovo" : ""}`,
     );
     button.setAttribute(
       "aria-current",
       index === session.index ? "step" : "false",
     );
     button.disabled = session.status === "running";
-    button.title = `${index + 1}. nálev · ${seconds} s`;
+    button.title = `${infusionLabel(session, index)} · ${seconds} s`;
     button.addEventListener("click", () => {
       selectInfusion(session, index);
       save();
@@ -539,7 +633,7 @@ function renderPills() {
   });
   scrollActiveInfusion();
   $("infusionsCount").textContent =
-    `${session.completed.length} / ${session.durations.length} hotovo`;
+    `${completedCount(session)} / ${infusionCount(session)} hotovo`;
 }
 function renderTimer() {
   const { tea, status, index, durations } = session;
@@ -549,7 +643,7 @@ function renderTimer() {
   $("timerBadge").hidden = status !== "running";
   $("timerTeaName").textContent = tea.name;
   $("timerTeaDetail").textContent = tea.desc || "Vlastní čajový recept";
-  $("timerLabel").textContent = `${index + 1}. nálev`;
+  $("timerLabel").textContent = `${infusionLabel(session, index)}`;
   $("timerStatus").textContent = {
     ready: "Připraveno",
     running: "Louhování",
@@ -579,11 +673,12 @@ function renderTimer() {
       : "Časovač stojí. Lístky se ve vodě dál louhují.";
   $("timerHint").hidden = status !== "done" && status !== "paused";
   $("btnNext").disabled = status === "running" || isLast;
-  $("lessTime").disabled =
-    status === "running" || status === "paused" || durations[index] <= 1;
-  $("moreTime").disabled =
-    status === "running" || status === "paused" || durations[index] >= 3600;
-  $("editRecipe").hidden = !customTeas.some((item) => item.id === tea.id);
+  $("lessTime").disabled = durations[index] <= 1;
+  $("moreTime").disabled = durations[index] >= 3600;
+  $("editRecipe").hidden = false;
+  $("addInfusion").disabled =
+    status === "running" || status === "paused" || durations.length >= 50;
+  updateMediaSession();
   $("paramTemp").innerHTML =
     `${esc(tea.temp.replace("°C", ""))}<span>°C</span>`;
   $("paramRatio").textContent = `${nl(tea.ratio)} g / 100 ml`;
@@ -594,30 +689,33 @@ function renderTimer() {
   renderPills();
 }
 function recordBrew(at = session.updatedAt) {
-  if (!session.completed.length) return;
+  if (!completedCount(session) || deletedSessions.has(session.id)) return;
   const previous = history.find((item) => item.session.id === session.id);
   const entry = {
     session: JSON.parse(JSON.stringify(session)),
     at,
     volume,
     note: previous?.note || "",
+    rating: previous?.rating || 0,
   };
   history = [
     entry,
     ...history.filter((item) => item.session.id !== session.id),
-  ].slice(0, 30);
-  $("journalCount").textContent = history.length;
+  ].slice(0, 500);
+  $("journalCount").textContent = history.length + archivedHistory.length;
 }
 function stopSilence() {
   silence.pause();
 }
 function unlockAudio() {
   if (!soundEnabled) return;
+  if (!silence.src) silence.src = silence.dataset.url;
   silence.play().catch(() => {});
   if (audioUnlocked || audioUnlocking) return;
   audioUnlocking = true;
   Promise.all(
     [chime, tickSound].map((audio) => {
+      if (!audio.src) audio.src = audio.dataset.url;
       audio.muted = true;
       return audio
         .play()
@@ -639,6 +737,7 @@ function unlockAudio() {
 }
 function playAudio(audio) {
   if (!soundEnabled) return;
+  if (!audio.src) audio.src = audio.dataset.url;
   audio.currentTime = 0;
   audio.play().catch(() => {
     if (audio === chime) toast("Čaj je hotový. Zvuk se nepodařilo přehrát.");
@@ -655,6 +754,7 @@ async function releaseAwake() {
 }
 async function requestAwake() {
   if (
+    !settings.wake ||
     !("wakeLock" in navigator) ||
     wakeLock ||
     wakeRequestPending ||
@@ -688,14 +788,23 @@ function reconcile() {
       playAudio(chime);
       recordBrew(deadline);
       save();
-      if ("vibrate" in navigator) navigator.vibrate([150, 80, 150]);
+      if (settings.vibrate && "vibrate" in navigator)
+        navigator.vibrate([150, 80, 150]);
+      notifyDone();
+      prepareAutoNext();
     }
     stopSilence();
     releaseAwake();
     renderTimer();
   } else if (session.status === "running") {
     const second = Math.ceil(session.remainingMs / 1000);
-    if (owner === tabId && second !== lastSecond && second > 0 && second <= 3)
+    if (
+      settings.ticks &&
+      owner === tabId &&
+      second !== lastSecond &&
+      second > 0 &&
+      second <= 3
+    )
       playAudio(tickSound);
     lastSecond = second;
     updateClock();
@@ -709,7 +818,7 @@ function mainAction() {
     releaseAwake();
   } else if (session.status === "done") {
     if (session.index === session.durations.length - 1)
-      session = createSession(
+      session = newSession(
         allTeas().find((tea) => tea.id === session.tea.id) || session.tea,
       );
     else nextInfusion(session);
@@ -727,60 +836,141 @@ function openCustom(tea = null) {
   $("customForm").reset();
   $("customId").value = tea?.id || "";
   $("customDialogTitle").textContent = tea ? "Upravit recept" : "Vlastní čaj";
-  $("deleteRecipe").hidden = !tea;
+  const preset = TEAS.some((item) => item.id === tea?.id);
+  $("deleteRecipe").hidden = !tea || (preset && !overrides[tea.id]);
+  $("deleteRecipe").textContent = preset
+    ? "Obnovit výchozí recept"
+    : "Smazat recept";
   if (tea) {
     $("customName").value = tea.name;
-    $("customTemp").value = parseInt(tea.temp, 10);
+    const temps = tea.temp.match(/\d+/g) || ["95"];
+    $("customTemp").value = temps[0];
+    $("customTempMax").value = temps[1] || temps[0];
     $("customRatio").value = tea.ratio;
+    $("customDesc").value = tea.desc || "";
+    $("customColor").value = tea.color || "#78845f";
+    $("customRinse").checked = !!tea.rinse;
     $("customFirst").value = tea.infusions[0];
     $("customIncrement").value =
-      tea.infusions.length > 1 ? tea.infusions[1] - tea.infusions[0] : 0;
+      Math.max(0, tea.infusions[1] - tea.infusions[0]) || 0;
     $("customCount").value = tea.infusions.length;
+    $("customList").value = tea.infusions.join(", ");
+    $("customMode").value = "list";
   }
   $("customError").textContent = "";
   renderRecipePreview();
   $("customDialog").showModal();
 }
-function renderRecipePreview() {
+function recipeDurations() {
+  if ($("customMode").value === "list") {
+    const text = $("customList").value.trim();
+    if (!text || !/^[\d\s,;]+$/.test(text)) return [];
+    const list = text
+      .split(/[\s,;]+/)
+      .filter(Boolean)
+      .map(Number);
+    return list.length <= 49 &&
+      list.every(
+        (value) => Number.isInteger(value) && value >= 1 && value <= 3600,
+      )
+      ? list
+      : [];
+  }
   const first = Number($("customFirst").value),
     increment = Number($("customIncrement").value),
     count = Number($("customCount").value);
-  const valid =
-    Number.isInteger(first) &&
-    first >= 1 &&
-    first <= 300 &&
-    Number.isInteger(increment) &&
-    increment >= 0 &&
-    increment <= 60 &&
-    Number.isInteger(count) &&
-    count >= 1 &&
-    count <= 20;
-  $("recipePreview").textContent = valid
-    ? `Nálevy: ${Array.from({ length: Math.min(count, 5) }, (_, i) => `${first + i * increment} s`).join(" → ")}${count > 5 ? " → …" : ""}`
-    : "Vyplňte časy a počet nálevů.";
+  if (
+    ![first, increment, count].every(Number.isInteger) ||
+    first < 1 ||
+    increment < 0 ||
+    increment > 600 ||
+    count < 1 ||
+    count > 49 ||
+    first + (count - 1) * increment > 3600
+  )
+    return [];
+  return Array.from({ length: count }, (_, i) => first + i * increment);
+}
+function renderRecipePreview() {
+  const manual = $("customMode").value === "list";
+  $("listField").hidden = !manual;
+  $("formulaFields").hidden = manual;
+  $("customList").disabled = !manual;
+  $("formulaFields")
+    .querySelectorAll("input")
+    .forEach((input) => (input.disabled = manual));
+  const durations = recipeDurations();
+  $("recipePreview").textContent = durations.length
+    ? `Nálevy: ${durations
+        .slice(0, 6)
+        .map((value) => `${value} s`)
+        .join(" → ")}${durations.length > 6 ? " → …" : ""}`
+    : "Zadejte 1–49 časů v rozmezí 1–3600 sekund.";
 }
 function renderJournal() {
   $("journalEntries").innerHTML = "";
-  if (!history.length) {
+  const entries = [
+    ...history.map((entry) => ({ entry, archived: false, date: entry.at })),
+    ...archivedHistory.map((entry) => ({
+      entry,
+      archived: true,
+      date: entry.date,
+    })),
+  ].sort((a, b) => b.date - a.date);
+  if (!entries.length) {
     $("journalEntries").innerHTML =
       '<div class="empty-state"><h3>Zatím žádné záznamy</h3><p>Dokončené nálevy se ukládají automaticky.</p></div>';
     return;
   }
-  history.forEach((entry) => {
+  entries.forEach(({ entry, archived, date }) => {
     const article = document.createElement("article");
     article.className = "journal-entry";
-    article.innerHTML = `<div class="journal-entry-header"><h3>${esc(entry.session.tea.name)}</h3><time datetime="${new Date(entry.at).toISOString()}">${esc(new Intl.DateTimeFormat("cs-CZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(entry.at))}</time></div><p class="journal-meta">${entry.session.completed.length} / ${entry.session.durations.length} nálevů · ${entry.volume} ml · ${nl((entry.session.tea.ratio * entry.volume) / 100)} g lístků</p><label class="journal-note-label">Poznámka<input type="text" maxlength="240" placeholder="Poznámka k přípravě" value="${esc(entry.note)}"></label><button class="text-button">Znovu připravit <span aria-hidden="true">↗</span></button>`;
+    const name = archived ? entry.tea.name : entry.session.tea.name;
+    const details = archived
+      ? `${entry.infusions} nálevů · ${formatTime(Math.round(entry.steepMs / 1000))} louhování`
+      : `${completedCount(entry.session)} / ${infusionCount(entry.session)} nálevů · ${entry.volume} ml · ${nl((entry.session.tea.ratio * entry.volume) / 100)} g lístků`;
+    article.innerHTML = `<div class="journal-entry-header"><h3>${esc(name)}</h3><time datetime="${new Date(date).toISOString()}">${esc(new Intl.DateTimeFormat("cs-CZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(date))}</time></div><p class="journal-meta">${esc(details)}</p><label class="journal-note-label">Poznámka<input type="text" maxlength="2000" placeholder="Poznámka k přípravě" value="${esc(entry.note)}"></label><label class="form-field journal-rating">Hodnocení<select aria-label="Hodnocení ${esc(name)}">${[0, 1, 2, 3, 4, 5].map((value) => `<option value="${value}" ${entry.rating === value ? "selected" : ""}>${value ? `${value} / 5` : "Bez hodnocení"}</option>`).join("")}</select></label>${archived ? "" : '<button class="text-button journal-again">Znovu připravit <span aria-hidden="true">↗</span></button>'}<button class="danger-button journal-delete">Smazat záznam</button>`;
+    const currentEntry = () =>
+      archived
+        ? archivedHistory.find((item) => item.id === entry.id)
+        : history.find((item) => item.session.id === entry.session.id);
     article.querySelector("input").addEventListener("input", (event) => {
-      const current = history.find(
-        (item) => item.session.id === entry.session.id,
-      );
+      const current = currentEntry();
       if (current) current.note = event.target.value;
       save();
     });
-    article.querySelector("button").addEventListener("click", () => {
+    article.querySelector("select").addEventListener("change", (event) => {
+      const current = currentEntry();
+      if (current) current.rating = Number(event.target.value);
+      save();
+    });
+    article.querySelector(".journal-delete").addEventListener("click", () => {
+      confirmAction(
+        "Smazat záznam?",
+        `Záznam „${name}“ bude odstraněn z deníku.`,
+        "Smazat",
+        () => {
+          if (archived)
+            archivedHistory = archivedHistory.filter(
+              (item) => item.id !== entry.id,
+            );
+          else {
+            deletedSessions.add(entry.session.id);
+            history = history.filter(
+              (item) => item.session.id !== entry.session.id,
+            );
+          }
+          save();
+          renderJournal();
+          $("journalCount").textContent =
+            history.length + archivedHistory.length;
+        },
+      );
+    });
+    article.querySelector(".journal-again")?.addEventListener("click", () => {
       $("journalDialog").close();
       const again = () => {
-        session = createSession(entry.session.tea);
+        session = newSession(entry.session.tea);
         stopSilence();
         releaseAwake();
         save();
@@ -810,6 +1000,141 @@ function renderSound() {
   );
   $("soundToggle").title = soundEnabled ? "Zvuk zapnutý" : "Zvuk vypnutý";
 }
+let autoNextTimeout;
+function prepareAutoNext() {
+  clearTimeout(autoNextTimeout);
+  if (!settings.autoNext || session.index === session.durations.length - 1)
+    return;
+  const { id, index, updatedAt } = session;
+  autoNextTimeout = setTimeout(() => {
+    if (
+      !settings.autoNext ||
+      owner !== tabId ||
+      session.id !== id ||
+      session.index !== index ||
+      session.updatedAt !== updatedAt ||
+      session.status !== "done"
+    )
+      return;
+    nextInfusion(session);
+    save();
+    renderTimer();
+  }, 3500);
+}
+function applyTheme() {
+  document.documentElement.dataset.theme =
+    settings.theme === "auto"
+      ? matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light"
+      : settings.theme;
+  document.documentElement.style.colorScheme =
+    document.documentElement.dataset.theme;
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener(
+  "change",
+  applyTheme,
+);
+async function notifyDone() {
+  if (
+    !settings.notify ||
+    !("Notification" in window) ||
+    Notification.permission !== "granted" ||
+    !document.hidden
+  )
+    return;
+  const title = `${infusionLabel(session)} hotový · ${session.tea.name}`;
+  const options = {
+    body: "Slijte čaj.",
+    icon: "./assets/icon-192.png",
+    tag: "gongfu-timer",
+  };
+  try {
+    const registration = await navigator.serviceWorker?.getRegistration();
+    if (registration) await registration.showNotification(title, options);
+    else new Notification(title, options);
+  } catch {}
+}
+function updateMediaSession() {
+  if (!("mediaSession" in navigator)) return;
+  try {
+    if ("MediaMetadata" in window)
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: session.tea.name,
+        artist: infusionLabel(session),
+        album: "Gōng Fū Chá",
+        artwork: [
+          { src: "./assets/icon-192.png", sizes: "192x192", type: "image/png" },
+        ],
+      });
+    navigator.mediaSession.playbackState =
+      session.status === "running" ? "playing" : "paused";
+  } catch {}
+}
+if ("mediaSession" in navigator) {
+  const handlers = {
+    play: () => {
+      if (session.status !== "running") mainAction();
+    },
+    pause: () => {
+      if (session.status === "running") mainAction();
+    },
+    stop: () => $("btnReset").click(),
+    nexttrack: () => $("btnNext").click(),
+    seekforward: () => changeDuration(5),
+    seekbackward: () => changeDuration(-5),
+  };
+  for (const [action, handler] of Object.entries(handlers))
+    try {
+      navigator.mediaSession.setActionHandler(action, handler);
+    } catch {}
+}
+$("openSettings").addEventListener("click", () => {
+  document
+    .querySelectorAll("[data-setting]")
+    .forEach((input) => (input.checked = settings[input.dataset.setting]));
+  $("settingTheme").value = settings.theme;
+  $("settingsDialog").showModal();
+});
+document.querySelectorAll("[data-setting]").forEach((input) =>
+  input.addEventListener("change", async () => {
+    const key = input.dataset.setting;
+    if (key === "notify" && input.checked) {
+      let granted = false;
+      try {
+        granted =
+          "Notification" in window &&
+          (await Notification.requestPermission()) === "granted";
+      } catch {}
+      if (!granted) {
+        input.checked = false;
+        toast("Oznámení nejsou povolená nebo je prohlížeč nepodporuje.");
+      }
+    }
+    settings[key] = input.checked;
+    if (key === "sound") {
+      soundEnabled = settings.sound;
+      if (!soundEnabled) {
+        stopSilence();
+        chime.pause();
+        tickSound.pause();
+      } else if (session.status === "running") unlockAudio();
+      renderSound();
+    }
+    if (key === "wake") {
+      if (settings.wake) requestAwake();
+      else releaseAwake();
+    }
+    save();
+  }),
+);
+$("settingTheme").addEventListener("change", () => {
+  settings.theme = $("settingTheme").value;
+  applyTheme();
+  save();
+});
+applyTheme();
+
 $("btnStart").addEventListener("click", mainAction);
 $("btnReset").addEventListener("click", () => {
   resetInfusion(session);
@@ -824,15 +1149,34 @@ $("btnNext").addEventListener("click", () => {
   save();
   renderTimer();
 });
-$("lessTime").addEventListener("click", () => {
-  adjustDuration(session, -5);
+function changeDuration(delta) {
+  reconcile();
+  const active = session.status === "running" || session.status === "paused";
+  adjustDuration(session, delta);
+  if (active && session.status === "done") {
+    recordBrew();
+    playAudio(chime);
+    notifyDone();
+    if (settings.vibrate && "vibrate" in navigator)
+      navigator.vibrate([150, 80, 150]);
+    stopSilence();
+    releaseAwake();
+    prepareAutoNext();
+  }
+  save(false, true);
+  if (session.status === "running") {
+    unlockAudio();
+    requestAwake();
+  }
+  renderTimer();
+}
+$("lessTime").addEventListener("click", () => changeDuration(-5));
+$("moreTime").addEventListener("click", () => changeDuration(5));
+$("addInfusion").addEventListener("click", () => {
+  addInfusion(session);
   save();
   renderTimer();
-});
-$("moreTime").addEventListener("click", () => {
-  adjustDuration(session, 5);
-  save();
-  renderTimer();
+  scrollToTimer();
 });
 $("showCollection").addEventListener("click", () => {
   setView("collection");
@@ -858,7 +1202,7 @@ document.querySelectorAll("[data-filter]").forEach((button) =>
 );
 $("addTea").addEventListener("click", () => openCustom());
 $("editRecipe").addEventListener("click", () =>
-  openCustom(customTeas.find((tea) => tea.id === session.tea.id)),
+  openCustom(allTeas().find((tea) => tea.id === session.tea.id) || session.tea),
 );
 $("customForm").addEventListener("input", renderRecipePreview);
 $("customForm").addEventListener("submit", (event) => {
@@ -869,29 +1213,33 @@ $("customForm").addEventListener("submit", (event) => {
     $("customError").textContent = "Napište název čaje.";
     return;
   }
-  if (!$("customId").value && customTeas.length >= 40) {
+  if (!$("customId").value && customTeas.length >= 500) {
     $("customError").textContent =
-      "Sbírka už obsahuje 40 receptů. Nejprve některý smažte.";
+      "Sbírka už obsahuje 500 receptů. Nejprve některý smažte.";
     return;
   }
-  const first = Number($("customFirst").value),
-    increment = Number($("customIncrement").value),
-    count = Number($("customCount").value);
+  const durations = recipeDurations();
+  const temperatures = [
+    Number($("customTemp").value),
+    Number($("customTempMax").value),
+  ].sort((a, b) => a - b);
   const tea = {
     id: $("customId").value || `custom_${crypto.randomUUID()}`,
     name,
-    temp: `${Number($("customTemp").value)}°C`,
+    temp: `${temperatures[0]}${temperatures[0] === temperatures[1] ? "" : `–${temperatures[1]}`}°C`,
     ratio: Number($("customRatio").value),
-    infusions: Array.from({ length: count }, (_, i) => first + i * increment),
-    color: "#78845f",
-    desc: `${first} s první nálev · +${increment} s každý další`,
+    infusions: durations,
+    color: $("customColor").value,
+    desc: $("customDesc").value.trim(),
+    rinse: $("customRinse").checked,
   };
   if (!validTea(tea)) {
-    $("customError").textContent = "Zkontrolujte zadané hodnoty.";
+    $("customError").textContent = "Zkontrolujte zadané hodnoty a časy nálevů.";
     return;
   }
   const existing = customTeas.findIndex((item) => item.id === tea.id);
-  if (existing >= 0) customTeas[existing] = tea;
+  if (TEAS.some((item) => item.id === tea.id)) overrides[tea.id] = tea;
+  else if (existing >= 0) customTeas[existing] = tea;
   else customTeas.push(tea);
   $("customDialog").close();
   save();
@@ -901,7 +1249,7 @@ $("customForm").addEventListener("submit", (event) => {
     toast("Recept uložen. Probíhající nálev používá původní nastavení.");
     return;
   }
-  session = createSession(tea);
+  session = newSession(tea);
   save();
   renderCollection();
   renderTimer();
@@ -910,20 +1258,32 @@ $("customForm").addEventListener("submit", (event) => {
 });
 $("deleteRecipe").addEventListener("click", () => {
   const id = $("customId").value;
-  const tea = customTeas.find((item) => item.id === id);
+  const preset = TEAS.find((item) => item.id === id);
+  const tea = allTeas().find((item) => item.id === id);
   if (!tea) return;
   $("customDialog").close();
   confirmAction(
-    "Smazat vlastní recept?",
-    `Recept „${tea.name}“ zmizí ze sbírky. Záznamy v deníku zůstanou.`,
-    "Smazat recept",
+    preset ? "Obnovit výchozí recept?" : "Smazat vlastní recept?",
+    preset
+      ? `Obnoví se výchozí nastavení čaje „${preset.name}“.`
+      : `Recept „${tea.name}“ zmizí ze sbírky. Záznamy v deníku zůstanou.`,
+    preset ? "Obnovit" : "Smazat recept",
     () => {
-      customTeas = customTeas.filter((item) => item.id !== id);
-      favorites.delete(id);
+      if (preset) {
+        delete overrides[id];
+        if (
+          session.tea.id === id &&
+          !["running", "paused"].includes(session.status)
+        )
+          session = newSession(preset);
+      } else {
+        customTeas = customTeas.filter((item) => item.id !== id);
+        favorites.delete(id);
+      }
       save();
       renderCollection();
       renderTimer();
-      toast("Recept je smazaný.");
+      toast(preset ? "Výchozí recept je obnovený." : "Recept je smazaný.");
     },
   );
 });
@@ -939,6 +1299,7 @@ $("vesselVolume").addEventListener("change", (event) => {
 });
 $("soundToggle").addEventListener("click", () => {
   soundEnabled = !soundEnabled;
+  settings.sound = soundEnabled;
   if (!soundEnabled) {
     silence.pause();
     chime.pause();
@@ -980,19 +1341,35 @@ document.querySelectorAll("dialog").forEach((dialog) =>
 );
 document.addEventListener("keydown", (event) => {
   if (
-    event.code !== "Space" ||
     event.repeat ||
     event.altKey ||
     event.ctrlKey ||
     event.metaKey ||
-    event.shiftKey ||
     document.querySelector("dialog[open]") ||
     event.target.closest("input,textarea,select,button,a,[contenteditable]")
   )
     return;
-  if (matchMedia("(max-width: 760px)").matches && view !== "timer") return;
-  event.preventDefault();
-  mainAction();
+  if (view !== "timer") return;
+  const action = {
+    Space: () => mainAction(),
+    Enter: () => mainAction(),
+    Escape: () => $("showCollection").click(),
+    ArrowLeft: () => {
+      selectInfusion(session, session.index - 1);
+      save();
+      renderTimer();
+    },
+    ArrowRight: () => $("btnNext").click(),
+    KeyR: () => $("btnReset").click(),
+    Equal: () => $("moreTime").click(),
+    NumpadAdd: () => $("moreTime").click(),
+    Minus: () => $("lessTime").click(),
+    NumpadSubtract: () => $("lessTime").click(),
+  }[event.code];
+  if (action) {
+    event.preventDefault();
+    action();
+  }
 });
 document.addEventListener("visibilitychange", () => {
   reconcile();
@@ -1008,7 +1385,7 @@ window.addEventListener("pagehide", () => {
   releaseAwake();
 });
 window.addEventListener("storage", (event) => {
-  if (event.key === KEY && event.newValue && event.newValue.length < 500000) {
+  if (event.key === KEY && event.newValue && event.newValue.length < 3000000) {
     try {
       if (
         applyExternal(JSON.parse(event.newValue)) &&
@@ -1048,7 +1425,7 @@ $("nextIcon").innerHTML = icons.next;
 $("openHelp").innerHTML = icons.help;
 $("searchIcon").innerHTML = icons.search;
 
-$("journalCount").textContent = history.length;
+$("journalCount").textContent = history.length + archivedHistory.length;
 if (
   session.status === "done" &&
   !history.some(

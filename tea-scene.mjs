@@ -1,18 +1,18 @@
 /* Decorative canvas only: the timer engine remains the source of time.
-   Geometry uses a 360 × 220 artboard; drawing is capped at 30 fps / 2× DPR. */
+   Geometry uses a 360 × 205 artboard; drawing is capped at 30 fps / 2× DPR. */
 const TAU = Math.PI * 2;
 const clamp = (n) => Math.max(0, Math.min(1, n));
 const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
 const color = (rgb, alpha = 1) => `rgba(${rgb.join(",")},${alpha})`;
 const palettes = {
-  green: [151, 159, 66],
-  white: [198, 160, 80],
+  green: [165, 172, 70],
+  white: [181, 146, 57],
   yellow: [193, 154, 39],
-  oolong_light: [184, 121, 31],
-  oolong_dark: [148, 70, 24],
-  red: [167, 68, 26],
+  oolong_light: [155, 95, 19],
+  oolong_dark: [109, 49, 15],
+  red: [138, 48, 14],
   sheng: [175, 137, 40],
-  shou: [111, 52, 24],
+  shou: [65, 29, 14],
   dancong: [183, 109, 30],
 };
 
@@ -214,47 +214,34 @@ export function createTeaScene(canvas) {
       canvas.width / 360,
       0,
       0,
-      canvas.height / 220,
+      canvas.height / 205,
       0,
-      (-canvas.height * 30) / 220,
+      (-canvas.height * 30) / 205,
     );
-    ctx.clearRect(0, 30, 360, 220);
+    ctx.clearRect(0, 30, 360, 205);
     const active = state.status === "running";
     const t = motion.matches ? 0 : elapsed;
-    const extract = 0.12 + strength * 0.88;
-    const tea = mix(
-      [221, 207, 155],
-      palettes[state.teaId] || palettes.oolong_light,
-      extract,
-    );
-    const deep = mix(tea, [116, 71, 23], 0.31);
+    const extract = Math.pow(clamp(strength), 0.85);
+    const hex = /^#([0-9a-f]{6})$/i.exec(state.teaColor || "");
+    const customColor = hex
+      ? [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16))
+      : null;
+    const brewed =
+      palettes[state.teaId] || customColor || palettes.oolong_light;
+    // Clear water shows the white porcelain underneath. Pigment enters with time.
+    const tea = mix([244, 246, 235], brewed, extract);
+    const deep = mix([218, 227, 218], mix(brewed, [56, 37, 21], 0.22), extract);
     const surfaceY = 87 + Math.sin(t * 1.6) * (active ? 0.8 : 0);
 
-    // Contact shadow, thin porcelain saucer and raised foot.
+    // Small contact shadow and the cup's raised foot; no saucer.
     ctx.save();
-    ctx.translate(180, 231);
+    ctx.translate(180, 223);
     ctx.scale(1, 0.12);
-    const shadow = ctx.createRadialGradient(0, 0, 5, 0, 0, 146);
+    const shadow = ctx.createRadialGradient(0, 0, 5, 0, 0, 91);
     shadow.addColorStop(0, "rgba(80,76,43,.16)");
     shadow.addColorStop(1, "rgba(80,76,43,0)");
-    ellipse(0, 0, 146, 146, shadow);
+    ellipse(0, 0, 91, 91, shadow);
     ctx.restore();
-    ellipse(
-      180,
-      225,
-      143,
-      13,
-      gradient(0, 212, 0, 238, [
-        [0, "#fdfcf7"],
-        [0.65, "#e6e5d7"],
-        [1, "#c7d0d1"],
-      ]),
-      "#ced8d6",
-      0.7,
-    );
-    ellipse(180, 222, 142, 11, "#f7f7ef", "rgba(255,255,255,.9)", 1.4);
-    ellipse(180, 222, 133, 9, null, "rgba(42,80,139,.48)", 1);
-    ellipse(180, 222, 85, 6, null, "rgba(42,80,139,.18)", 0.7);
     ellipse(180, 220, 51, 7, "rgba(121,133,108,.1)");
     ellipse(
       180,
@@ -347,7 +334,7 @@ export function createTeaScene(canvas) {
         15 + (i % 5) * 4 + strength * 10,
         Math.sin(phase * 0.8) * 0.8 + i * 1.9,
         0.15 + strength * 0.85,
-        0.27 + depth * 0.33,
+        (0.27 + depth * 0.33) * (1 - extract * 0.48),
         i,
         0.55 + depth * 0.25,
       );

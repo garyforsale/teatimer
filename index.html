@@ -35,6 +35,14 @@
         >
         <div class="header-actions">
           <button
+            id="openSettings"
+            class="icon-button"
+            aria-label="Nastavení"
+            title="Nastavení"
+          >
+            ⚙
+          </button>
+          <button
             id="soundToggle"
             class="icon-button"
             aria-label="Vypnout zvuk"
@@ -159,9 +167,9 @@
                       aria-label="Objem nádoby v mililitrech"
                       type="number"
                       value="100"
-                      min="50"
+                      min="30"
                       max="1000"
-                      step="10"
+                      step="1"
                       inputmode="numeric"
                     /><span>ml</span>
                   </div>
@@ -173,15 +181,15 @@
                 <span id="timerLabel">1. nálev</span
                 ><span id="timerStatus" role="status">Připraveno</span>
               </div>
+              <span
+                class="timer-time"
+                id="timerTime"
+                role="timer"
+                aria-label="Zbývá 20 sekund"
+                >0:20</span
+              >
               <div class="timer-display">
                 <canvas id="teaScene" aria-hidden="true"></canvas>
-                <span
-                  class="timer-time"
-                  id="timerTime"
-                  role="timer"
-                  aria-label="Zbývá 20 sekund"
-                  >0:20</span
-                >
               </div>
               <div class="time-adjust">
                 <button id="lessTime" aria-label="Zkrátit nálev o 5 sekund">
@@ -221,6 +229,7 @@
               aria-label="Jednotlivé nálevy"
             ></div>
           </div>
+          <button id="addInfusion" class="text-button">Přidat nálev</button>
           <details class="brew-advice">
             <summary>Doporučení k přípravě</summary>
             <p class="brew-tip" id="brewTip"></p>
@@ -261,12 +270,12 @@
         /></label>
         <div class="form-row">
           <label class="form-field"
-            >Teplota vody (°C)<input
+            >Teplota od (°C)<input
               id="customTemp"
               type="number"
               required
               value="95"
-              min="50"
+              min="40"
               max="100"
               step="1" /></label
           ><label class="form-field"
@@ -275,42 +284,75 @@
               type="number"
               required
               value="5"
-              min="1"
-              max="15"
+              min="0.5"
+              max="30"
               step="0.5"
           /></label>
         </div>
         <div class="form-row">
           <label class="form-field"
-            >První nálev (s)<input
-              id="customFirst"
+            >Teplota do (°C)<input
+              id="customTempMax"
               type="number"
-              required
-              value="20"
-              min="1"
-              max="300"
-              step="1" /></label
+              min="40"
+              max="100"
+              value="95"
+              required /></label
           ><label class="form-field"
-            >Prodloužení dalšího (s)<input
-              id="customIncrement"
-              type="number"
-              required
-              value="5"
-              min="0"
-              max="60"
-              step="1"
+            >Barva<input id="customColor" type="color" value="#78845f"
           /></label>
         </div>
         <label class="form-field"
-          >Počet nálevů<input
-            id="customCount"
-            type="number"
-            required
-            value="8"
-            min="1"
-            max="20"
-            step="1"
+          >Popis<input id="customDesc" maxlength="500"
         /></label>
+        <label class="settings-option"
+          ><input id="customRinse" type="checkbox" /> Oplach před prvním
+          nálevem</label
+        >
+        <label class="form-field"
+          >Časy nálevů<select id="customMode">
+            <option value="formula">První čas a prodloužení</option>
+            <option value="list">Jednotlivé časy</option>
+          </select></label
+        >
+        <label class="form-field" id="listField" hidden
+          >Časy v sekundách, oddělené čárkou<input
+            id="customList"
+            placeholder="20, 15, 20, 30, 45"
+        /></label>
+        <div id="formulaFields">
+          <div class="form-row">
+            <label class="form-field"
+              >První nálev (s)<input
+                id="customFirst"
+                type="number"
+                required
+                value="20"
+                min="1"
+                max="3600"
+                step="1" /></label
+            ><label class="form-field"
+              >Prodloužení dalšího (s)<input
+                id="customIncrement"
+                type="number"
+                required
+                value="5"
+                min="0"
+                max="600"
+                step="1"
+            /></label>
+          </div>
+          <label class="form-field"
+            >Počet nálevů<input
+              id="customCount"
+              type="number"
+              required
+              value="8"
+              min="1"
+              max="49"
+              step="1"
+          /></label>
+        </div>
         <p class="recipe-preview" id="recipePreview"></p>
         <p class="form-error" id="customError" role="alert"></p>
         <div class="dialog-actions">
@@ -334,12 +376,54 @@
         </div>
         <button class="icon-button close-dialog" aria-label="Zavřít"></button>
       </div>
-      <p class="dialog-intro">
-        Posledních 30 příprav uložených v tomto prohlížeči.
-      </p>
+      <p class="dialog-intro">Přípravy uložené v tomto prohlížeči.</p>
       <div id="journalEntries"></div>
     </dialog>
 
+    <dialog id="settingsDialog" aria-labelledby="settingsTitle" class="dialog">
+      <div class="dialog-head">
+        <h2 id="settingsTitle">Nastavení</h2>
+        <button class="icon-button close-dialog" aria-label="Zavřít"></button>
+      </div>
+      <div class="settings-options">
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="sound" />Zvuk dokončení</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="ticks" />Zvuk posledních tří
+          sekund</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="vibrate" />Vibrace</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="wake" />Nechat displej
+          zapnutý</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="notify" />Oznámení</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="rinse" />Oplach u doporučených
+          čajů</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="autoNext" />Po dokončení
+          připravit další nálev</label
+        >
+      </div>
+      <p class="dialog-intro">
+        Další nálev se sám nespustí. Oplach platí pro novou přípravu. Oznámení
+        závisí na podpoře prohlížeče; na iPhonu aplikaci přidejte na plochu.
+      </p>
+      <label class="form-field"
+        >Vzhled<select id="settingTheme">
+          <option value="auto">Podle systému</option>
+          <option value="light">Světlý</option>
+          <option value="dark">Tmavý</option>
+        </select></label
+      ><button class="primary-button close-dialog full-width">Zavřít</button>
+    </dialog>
     <dialog
       id="helpDialog"
       aria-labelledby="helpTitle"
