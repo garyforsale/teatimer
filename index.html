@@ -9,14 +9,14 @@
     <meta name="theme-color" content="#233e35" />
     <meta
       name="description"
-      content="Chvíle pro dobrý čaj. Gongfu časovač s devíti čajovými profily, vlastními recepty a deníkem nálevů. Funguje i offline."
+      content="Gongfu časovač s devíti čajovými profily, vlastními recepty a deníkem nálevů. Funguje i offline."
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta property="og:title" content="Gōng Fū Chá · Chvíle pro dobrý čaj" />
+    <meta property="og:title" content="Gōng Fū Chá · Čajový časovač" />
     <meta
       property="og:description"
-      content="Vyberte čaj, připravte vodu a nechte čas na nás. Váš průvodce každým nálevem."
+      content="Čajový časovač pro iPhone s vlastními recepty, deníkem a offline režimem."
     />
     <title>Gōng Fū Chá · Čajový časovač</title>
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
@@ -31,9 +31,7 @@
       <header class="site-header">
         <a href="./" class="brand" aria-label="Gōng Fū Chá — úvod"
           ><span class="brand-seal" aria-hidden="true">茶</span
-          ><span
-            ><strong>Gōng Fū Chá</strong><small>ČAS NA DOBRÝ ČAJ</small></span
-          ></a
+          ><span><strong>Gōng Fū Chá</strong></span></a
         >
         <div class="header-actions">
           <button
@@ -54,9 +52,7 @@
 
       <section class="intro" aria-labelledby="introTitle">
         <div class="intro-copy">
-          <p class="eyebrow"><span class="tiny-line"></span> VÁŠ MALÝ RITUÁL</p>
-          <h1 id="introTitle">Chvíle<br /><em>na čaj.</em></h1>
-          <p>Vyberte čaj, připravte vodu.<br />My pohlídáme každý nálev.</p>
+          <h1 id="introTitle">Čajový<br />časovač</h1>
         </div>
         <div class="intro-photo">
           <img
@@ -65,9 +61,7 @@
             width="1536"
             height="1024"
             fetchpriority="high"
-          /><span class="photo-caption"
-            >一 茶 一 会 <span>JEDEN ČAJ, JEDEN OKAMŽIK</span></span
-          >
+          />
         </div>
       </section>
 
@@ -93,8 +87,7 @@
         >
           <div class="section-heading">
             <div>
-              <p class="eyebrow">01 / ČAJOVÁ SBÍRKA</p>
-              <h2 id="collectionTitle">Vyberte si čaj.</h2>
+              <h2 id="collectionTitle">Vyberte čaj</h2>
             </div>
             <button class="text-button" id="addTea">
               <span aria-hidden="true">+</span> Vlastní čaj
@@ -129,10 +122,6 @@
             /></label>
           </div>
           <div class="tea-grid" id="teaGrid"></div>
-          <p class="collection-note">
-            <span aria-hidden="true">↗</span> Časy jsou výchozí bod. Dolaďte je
-            podle svého čaje a chuti.
-          </p>
         </section>
 
         <section
@@ -141,85 +130,92 @@
           aria-labelledby="timerTeaName"
           tabindex="-1"
         >
-          <div class="section-heading timer-heading">
-            <p class="eyebrow">02 / VÁŠ ČAJOVÝ RITUÁL</p>
-            <span class="saved-indicator" id="saveIndicator"
-              >Průběžně uloženo</span
-            >
-          </div>
           <div class="timer-card" id="timerCard">
             <div class="timer-card-top">
               <div>
-                <p class="timer-overline" id="timerCategory">SVĚTLÝ OOLONG</p>
                 <h2 id="timerTeaName">Oolong světlý</h2>
                 <p id="timerTeaDetail">Tiě Guān Yīn, Āli Shān</p>
               </div>
-              <span
-                class="timer-tea-mark"
-                id="timerTeaMark"
-                aria-hidden="true"
-              ></span>
+              <button id="editRecipe" class="text-button" hidden>
+                Upravit
+              </button>
             </div>
-            <div class="timer-state">
-              <span class="status-dot"></span
-              ><span id="timerStatus" role="status">Připraveno k zalití</span>
+            <div class="preparation">
+              <div class="brew-params">
+                <div class="param">
+                  <small>Voda</small
+                  ><strong id="paramTemp">90–95<span>°C</span></strong>
+                </div>
+                <div class="param">
+                  <small>Lístky</small
+                  ><strong id="paramGrams">5<span>g</span></strong
+                  ><span id="paramRatio" class="sr-only">5 g / 100 ml</span>
+                </div>
+                <div class="param">
+                  <label for="vesselVolume">Nádoba</label>
+                  <div class="volume-label">
+                    <input
+                      id="vesselVolume"
+                      aria-label="Objem nádoby v mililitrech"
+                      type="number"
+                      value="100"
+                      min="50"
+                      max="1000"
+                      step="10"
+                      inputmode="numeric"
+                    /><span>ml</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="timer-container">
-              <svg class="timer-ring" viewBox="0 0 280 280" aria-hidden="true">
-                <circle class="ring-track" cx="140" cy="140" r="128" />
-                <circle
-                  class="ring-progress"
-                  id="progressRing"
-                  cx="140"
-                  cy="140"
-                  r="128"
-                />
-              </svg>
+            <div class="timer-focus">
+              <div class="timer-phase">
+                <span id="timerLabel">1. nálev</span
+                ><span id="timerStatus" role="status">Připraveno</span>
+              </div>
               <div class="timer-display">
-                <span class="timer-inf-label" id="timerLabel">1. NÁLEV</span
-                ><span
+                <span
                   class="timer-time"
                   id="timerTime"
                   role="timer"
                   aria-label="Zbývá 20 sekund"
                   >0:20</span
                 >
-                <div class="time-adjust">
-                  <button id="lessTime" aria-label="Zkrátit nálev o 5 sekund">
-                    −5 s</button
-                  ><span id="durationLabel">20 sekund</span
-                  ><button
-                    id="moreTime"
-                    aria-label="Prodloužit nálev o 5 sekund"
-                  >
-                    +5 s
-                  </button>
-                </div>
+              </div>
+              <div class="timer-track" aria-hidden="true">
+                <div id="timerProgress"></div>
+              </div>
+              <div class="time-adjust">
+                <button id="lessTime" aria-label="Zkrátit nálev o 5 sekund">
+                  −5 s</button
+                ><button id="moreTime" aria-label="Prodloužit nálev o 5 sekund">
+                  +5 s
+                </button>
               </div>
             </div>
+            <button id="btnStart" class="start-button">
+              <span id="startIcon" aria-hidden="true"></span
+              ><span id="startLabel">Spustit</span>
+            </button>
             <div class="timer-controls">
               <button
                 id="btnReset"
-                class="timer-icon-button"
+                class="timer-secondary"
                 aria-label="Vynulovat aktuální nálev"
-                title="Začít tento nálev znovu"
-              ></button
-              ><button id="btnStart" class="start-button">
-                <span id="startIcon" aria-hidden="true"></span
-                ><span id="startLabel">Začít louhovat</span></button
+              >
+                <span id="resetIcon" aria-hidden="true"></span>Znovu</button
               ><button
                 id="btnNext"
-                class="timer-icon-button"
+                class="timer-secondary"
                 aria-label="Další nálev"
-                title="Další nálev"
-              ></button>
+              >
+                Další nálev<span id="nextIcon" aria-hidden="true"></span>
+              </button>
             </div>
-            <p class="timer-hint" id="timerHint">
-              Zalijte lístky a spusťte časovač.
-            </p>
+            <p class="timer-hint" id="timerHint" hidden></p>
             <div class="infusions-heading">
-              <span>Postup nálevů</span
-              ><span id="infusionsCount">0 / 10 hotovo</span>
+              <h3>Nálevy</h3>
+              <span id="infusionsCount">0 / 10 hotovo</span>
             </div>
             <div
               class="infusions-strip"
@@ -227,56 +223,18 @@
               aria-label="Jednotlivé nálevy"
             ></div>
           </div>
-          <div class="preparation">
-            <div class="prep-heading">
-              <h3>Vše pro tento šálek</h3>
-              <button id="editRecipe" class="text-button" hidden>
-                Upravit recept
-              </button>
-            </div>
-            <div class="brew-params">
-              <div class="param">
-                <span class="param-icon" id="tempIcon" aria-hidden="true"></span
-                ><strong id="paramTemp">90–95<span>°C</span></strong
-                ><small>teplota vody</small>
-              </div>
-              <div class="param">
-                <span class="param-icon" id="leafIcon" aria-hidden="true"></span
-                ><strong id="paramGrams">5<span>g</span></strong
-                ><small id="paramRatio">5 g / 100 ml</small>
-              </div>
-              <div class="param">
-                <span class="param-icon" id="cupIcon" aria-hidden="true"></span
-                ><label class="volume-label" for="vesselVolume"
-                  ><input
-                    id="vesselVolume"
-                    aria-label="Objem nádoby v mililitrech"
-                    type="number"
-                    value="100"
-                    min="50"
-                    max="1000"
-                    step="10"
-                    inputmode="numeric"
-                  /><span>ml</span></label
-                ><small>objem nádoby</small>
-              </div>
-            </div>
+          <details class="brew-advice">
+            <summary>Doporučení k přípravě</summary>
             <p class="brew-tip" id="brewTip"></p>
-          </div>
-          <div class="keyboard-note">
-            <kbd>mezerník</kbd> spustit / pozastavit
-            <span aria-hidden="true">·</span>
-            <span id="offlineStatus">Připraveno na vaši chvíli</span>
-          </div>
+          </details>
+          <span class="saved-indicator" id="saveIndicator" hidden
+            >Průběžně uloženo</span
+          >
         </section>
       </main>
       <footer class="site-footer">
-        <span
-          >Gōng Fū Chá <span class="footer-dot">·</span> S každým nálevem trochu
-          jiný.</span
-        ><button class="text-button" id="footerHelp">
-          Malý průvodce přípravou <span aria-hidden="true">↗</span>
-        </button>
+        <button class="text-button" id="footerHelp">Průvodce přípravou</button
+        ><span id="offlineStatus"></span>
       </footer>
     </div>
 
@@ -287,14 +245,11 @@
     >
       <div class="dialog-head">
         <div>
-          <p class="eyebrow">VAŠE ČAJOVÁ SBÍRKA</p>
-          <h2 id="customDialogTitle">Čaj podle vás.</h2>
+          <h2 id="customDialogTitle">Vlastní čaj</h2>
         </div>
         <button class="icon-button close-dialog" aria-label="Zavřít"></button>
       </div>
-      <p class="dialog-intro">
-        Uložte si vlastní recept. Příště už jen zalijete.
-      </p>
+      <p class="dialog-intro">Nastavte časy, teplotu vody a množství lístků.</p>
       <form id="customForm">
         <input type="hidden" id="customId" /><label class="form-field"
           >Název čaje<input
@@ -303,7 +258,7 @@
             type="text"
             required
             maxlength="60"
-            placeholder="Třeba můj oblíbený oolong"
+            placeholder="Název čaje"
             autocomplete="off"
         /></label>
         <div class="form-row">
@@ -377,13 +332,12 @@
     >
       <div class="dialog-head">
         <div>
-          <p class="eyebrow">VAŠE POSLEDNÍ PŘÍPRAVY</p>
-          <h2 id="journalTitle">Čajový deník.</h2>
+          <h2 id="journalTitle">Čajový deník</h2>
         </div>
         <button class="icon-button close-dialog" aria-label="Zavřít"></button>
       </div>
       <p class="dialog-intro">
-        Vašich posledních 30 příprav. Zůstávají v tomto prohlížeči.
+        Posledních 30 příprav uložených v tomto prohlížeči.
       </p>
       <div id="journalEntries"></div>
     </dialog>
@@ -395,14 +349,12 @@
     >
       <div class="dialog-head">
         <div>
-          <p class="eyebrow">GŌNG FŪ CHA / 功夫茶</p>
-          <h2 id="helpTitle">Čas věnovaný čaji.</h2>
+          <h2 id="helpTitle">Příprava gongfu</h2>
         </div>
         <button class="icon-button close-dialog" aria-label="Zavřít"></button>
       </div>
       <p class="dialog-intro">
-        Více lístků, méně vody, krátké nálevy. Stejný čaj postupně ukáže různé
-        chutě.
+        Gongfu používá menší objem vody a několik krátkých nálevů.
       </p>
       <ol class="guide-steps">
         <li>
@@ -439,17 +391,16 @@
         <li>
           <span>04</span>
           <div>
-            <h3>Najděte svou chuť</h3>
+            <h3>Upravte čas</h3>
             <p>
-              Příliš silný čaj? Příští nálev zkraťte. Slabý? Přidejte pár
-              sekund. Uvedené časy jsou vodítko, přednost mají pokyny k vašemu
-              čaji.
+              Silný nálev zkraťte, slabý prodlužte. Přednost mají pokyny ke
+              konkrétnímu čaji.
             </p>
           </div>
         </li>
       </ol>
       <div class="help-note">
-        <strong>Malá technická poznámka</strong>
+        <strong>Zvuk a offline režim</strong>
         <p>
           Průběh se ukládá automaticky. Po návratu do aplikace se čas přepočítá.
           Pro včasný zvuk nechte aplikaci otevřenou a telefon odemčený;
@@ -461,9 +412,7 @@
           úplném načtení aplikace funguje i offline.
         </p>
       </div>
-      <button class="primary-button close-dialog full-width">
-        Jdeme na čaj
-      </button>
+      <button class="primary-button close-dialog full-width">Zavřít</button>
     </dialog>
 
     <dialog

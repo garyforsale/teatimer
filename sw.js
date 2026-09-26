@@ -1,6 +1,6 @@
 /* Bump this version whenever the app shell changes. Updates activate only once
    the previous version's tabs close; a brewing timer is never reloaded. */
-const CACHE_VERSION = "2026-09-26-iphone-v2";
+const CACHE_VERSION = "2026-09-26-iphone-v3";
 const CACHE_PREFIX = `tea-timer:${self.registration.scope}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const APP_SHELL = [

@@ -60,7 +60,7 @@ const TEAS = [
     ratio: 4,
     infusions: [30, 40, 50, 60, 70, 80, 90, 100],
     desc: "Lóng Jǐng, Bì Luó Chūn",
-    tip: "Jemné lístky ocení chladnější vodu. Pokud čaj hořkne, uberte teplotu nebo čas.",
+    tip: "Pokud čaj hořkne, snižte teplotu vody nebo zkraťte louhování.",
   },
   {
     id: "white",
@@ -71,7 +71,7 @@ const TEAS = [
     ratio: 4.5,
     infusions: [20, 15, 20, 25, 30, 40, 50, 70, 90],
     desc: "Bái Háo Yín Zhēn, Bái Mǔ Dān",
-    tip: "Dejte jemné vůni prostor. U vyzrálých a lisovaných bílých čajů se může hodit teplejší voda.",
+    tip: "U vyzrálých a lisovaných bílých čajů lze použít teplejší vodu.",
   },
   {
     id: "yellow",
@@ -82,7 +82,7 @@ const TEAS = [
     ratio: 4,
     infusions: [15, 15, 20, 25, 35, 50, 70],
     desc: "Jūn Shān Yín Zhēn",
-    tip: "Začněte jemně. Krátké nálevy a mírnější teplota pomohou udržet čaj lehký a sladký.",
+    tip: "Použijte kratší nálevy a vodu o teplotě 80–85 °C.",
   },
   {
     id: "oolong_light",
@@ -104,7 +104,7 @@ const TEAS = [
     ratio: 6,
     infusions: [10, 10, 15, 15, 20, 25, 30, 40, 60, 80],
     desc: "Dà Hóng Páo, Ròu Guì",
-    tip: "Horká voda rozvine pražené tóny. Mezi nálevy nechte konvičku důkladně vykapat.",
+    tip: "Mezi nálevy nechte konvičku důkladně vykapat.",
   },
   {
     id: "red",
@@ -115,7 +115,7 @@ const TEAS = [
     ratio: 5,
     infusions: [10, 10, 15, 15, 20, 30, 40, 60],
     desc: "Diān Hóng, Jīn Jùn Méi · černý čaj",
-    tip: "V Číně červený, u nás černý. Krátký první nálev nechá vyniknout sladkost bez svíravosti.",
+    tip: "Červený čaj odpovídá evropskému označení černý čaj. Začněte krátkým nálevem.",
   },
   {
     id: "sheng",
@@ -126,7 +126,7 @@ const TEAS = [
     ratio: 6,
     infusions: [10, 8, 10, 12, 15, 20, 25, 35, 50, 70, 90, 120],
     desc: "Mladý i vyzrálý shēng",
-    tip: "Mladý shēng může být výrazný. Podle chuti snižte teplotu nebo zkraťte první nálevy.",
+    tip: "Pokud je mladý shēng příliš silný, snižte teplotu nebo zkraťte první nálevy.",
   },
   {
     id: "shou",
@@ -148,7 +148,7 @@ const TEAS = [
     ratio: 7,
     infusions: [5, 5, 8, 10, 15, 20, 25, 35, 50, 70],
     desc: "Fènghuáng Dān Cóng",
-    tip: "Aromatický čaj, který rád krátké nálevy. Slévejte svižně, několik sekund tu dělá rozdíl.",
+    tip: "Začněte nálevem dlouhým 5 sekund. Čaj ihned slijte.",
   },
 ];
 const KEY = "gongfu-tea-v2";
@@ -230,7 +230,7 @@ let pendingConfirmation = null;
 let wakeLock = null;
 let wakeRequestPending = false;
 let lastSecond = null;
-const circumference = 2 * Math.PI * 128;
+
 const chime = new Audio("./assets/chime.wav");
 const tickSound = new Audio("./assets/tick.wav");
 const silence = new Audio("./assets/silence.wav");
@@ -341,6 +341,7 @@ function save(releaseOwnership = false, claimOwnership = false) {
       toast("Prohlížeč nedovolil uložit data. Nezavírejte rozběhnutý časovač.");
     storageAvailable = false;
   }
+  $("saveIndicator").hidden = storageAvailable;
   $("saveIndicator").textContent = storageAvailable
     ? "Průběžně uloženo"
     : "Ukládání není dostupné";
@@ -352,7 +353,7 @@ function metadata(tea) {
   return (
     TEAS.find((item) => item.id === tea.id) || {
       kind: "VLASTNÍ RECEPT",
-      tip: "Váš recept, vaše tempo. Čas každého nálevu můžete před spuštěním doladit.",
+      tip: "Čas jednotlivých nálevů lze změnit před spuštěním.",
     }
   );
 }
@@ -425,15 +426,15 @@ function renderCollection() {
     const empty = document.createElement("div");
     empty.className = "empty-state";
     const heading = query
-      ? "Tenhle čaj tu zatím není."
+      ? "Žádné výsledky"
       : filter === "favorites"
-        ? "Vaši oblíbenci mají místo tady."
-        : "První recept je na vás.";
+        ? "Žádné oblíbené čaje"
+        : "Žádné vlastní recepty";
     const detail = query
       ? "Zkuste kratší název nebo si uložte vlastní recept."
       : filter === "favorites"
-        ? "Klepněte na hvězdičku u čaje a najdete ho tu příště."
-        : "Nastavte čaj přesně tak, jak vám chutná.";
+        ? "Čaj přidáte klepnutím na hvězdičku."
+        : "Nový recept přidáte tlačítkem Vlastní čaj.";
     empty.innerHTML = `<h3>${heading}</h3><p>${detail}</p>`;
     $("teaGrid").append(empty);
   }
@@ -444,7 +445,7 @@ function renderCollection() {
     const add = document.createElement("button");
     add.className = "add-card";
     add.innerHTML =
-      '<span aria-hidden="true">+</span><strong>Vlastní čaj</strong><small>Váš čaj. Váš recept.</small>';
+      '<span aria-hidden="true">+</span><strong>Vlastní čaj</strong><small>Uložit vlastní nastavení</small>';
     add.addEventListener("click", () => openCustom());
     $("teaGrid").append(add);
   }
@@ -486,10 +487,8 @@ function updateClock() {
   const seconds = Math.ceil(session.remainingMs / 1000);
   $("timerTime").textContent = formatTime(seconds);
   $("timerTime").setAttribute("aria-label", `Zbývá ${secondsText(seconds)}`);
-  $("progressRing").style.strokeDasharray = circumference;
-  $("progressRing").style.strokeDashoffset =
-    circumference *
-    (1 - session.remainingMs / (session.durations[session.index] * 1000));
+  $("timerProgress").style.transform =
+    `scaleX(${session.remainingMs / (session.durations[session.index] * 1000)})`;
   document.title =
     session.status === "running"
       ? `${formatTime(seconds)} · ${session.tea.name} — Gōng Fū Chá`
@@ -511,7 +510,7 @@ function renderPills() {
   session.durations.forEach((seconds, index) => {
     const button = document.createElement("button");
     button.className = `inf-pill${index === session.index ? " active" : ""}${session.completed.includes(index) ? " done" : ""}`;
-    button.textContent = session.completed.includes(index) ? "✓" : index + 1;
+    button.innerHTML = `<span class="inf-number">${session.completed.includes(index) ? "✓" : index + 1}</span><span class="inf-duration">${seconds} s</span>`;
     button.setAttribute(
       "aria-label",
       `${index + 1}. nálev, ${seconds} sekund${session.completed.includes(index) ? ", hotovo" : ""}`,
@@ -542,15 +541,12 @@ function renderTimer() {
   $("timerBadge").hidden = status !== "running";
   $("timerTeaName").textContent = tea.name;
   $("timerTeaDetail").textContent = tea.desc || "Vlastní čajový recept";
-  $("timerCategory").textContent = meta.kind;
-  $("timerTeaMark").innerHTML = icons.leaf;
-  $("timerLabel").textContent = `${index + 1}. NÁLEV`;
-  $("durationLabel").textContent = secondsText(durations[index]);
+  $("timerLabel").textContent = `${index + 1}. nálev`;
   $("timerStatus").textContent = {
-    ready: "Připraveno k zalití",
-    running: "Probíhá louhování",
-    paused: "Chvilka pauzy",
-    done: "Hotovo. Čas slít čaj.",
+    ready: "Připraveno",
+    running: "Louhování",
+    paused: "Pozastaveno",
+    done: "Hotovo",
   }[status];
   $("startLabel").textContent =
     status === "done"
@@ -561,7 +557,7 @@ function renderTimer() {
         ? "Pozastavit"
         : status === "paused"
           ? "Pokračovat"
-          : "Začít louhovat";
+          : "Spustit";
   $("startIcon").innerHTML =
     status === "running"
       ? icons.pause
@@ -569,14 +565,11 @@ function renderTimer() {
         ? icons.next
         : icons.play;
   $("btnStart").setAttribute("aria-label", $("startLabel").textContent);
-  $("timerHint").textContent = {
-    ready: "Zalijte lístky a spusťte časovač.",
-    running: "Nechte aplikaci otevřenou. Ohlídáme čas.",
-    paused: "Čas stojí. Čaj v horké vodě se dál louhuje.",
-    done: isLast
-      ? "Poslední nálev je hotový. Dobrou chuť."
-      : "Slijte čaj. Další nálev počká na vás.",
-  }[status];
+  $("timerHint").textContent =
+    status === "done"
+      ? "Slijte čaj."
+      : "Časovač stojí. Lístky se ve vodě dál louhují.";
+  $("timerHint").hidden = status !== "done" && status !== "paused";
   $("btnNext").disabled = status === "running" || isLast;
   $("lessTime").disabled =
     status === "running" || status === "paused" || durations[index] <= 1;
@@ -725,9 +718,7 @@ function mainAction() {
 function openCustom(tea = null) {
   $("customForm").reset();
   $("customId").value = tea?.id || "";
-  $("customDialogTitle").textContent = tea
-    ? "Váš čajový recept."
-    : "Čaj podle vás.";
+  $("customDialogTitle").textContent = tea ? "Upravit recept" : "Vlastní čaj";
   $("deleteRecipe").hidden = !tea;
   if (tea) {
     $("customName").value = tea.name;
@@ -764,13 +755,13 @@ function renderJournal() {
   $("journalEntries").innerHTML = "";
   if (!history.length) {
     $("journalEntries").innerHTML =
-      '<div class="empty-state"><h3>První šálek teprve přijde.</h3><p>Po dokončení nálevu se sem příprava uloží. Můžete si k ní poznamenat, jak čaj chutnal.</p></div>';
+      '<div class="empty-state"><h3>Zatím žádné záznamy</h3><p>Dokončené nálevy se ukládají automaticky.</p></div>';
     return;
   }
   history.forEach((entry) => {
     const article = document.createElement("article");
     article.className = "journal-entry";
-    article.innerHTML = `<div class="journal-entry-header"><h3>${esc(entry.session.tea.name)}</h3><time datetime="${new Date(entry.at).toISOString()}">${esc(new Intl.DateTimeFormat("cs-CZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(entry.at))}</time></div><p class="journal-meta">${entry.session.completed.length} / ${entry.session.durations.length} nálevů · ${entry.volume} ml · ${nl((entry.session.tea.ratio * entry.volume) / 100)} g lístků</p><label class="journal-note-label">Jak chutnal?<input type="text" maxlength="240" placeholder="Vůně, chuť, nápad na příště…" value="${esc(entry.note)}"></label><button class="text-button">Znovu připravit <span aria-hidden="true">↗</span></button>`;
+    article.innerHTML = `<div class="journal-entry-header"><h3>${esc(entry.session.tea.name)}</h3><time datetime="${new Date(entry.at).toISOString()}">${esc(new Intl.DateTimeFormat("cs-CZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(entry.at))}</time></div><p class="journal-meta">${entry.session.completed.length} / ${entry.session.durations.length} nálevů · ${entry.volume} ml · ${nl((entry.session.tea.ratio * entry.volume) / 100)} g lístků</p><label class="journal-note-label">Poznámka<input type="text" maxlength="240" placeholder="Poznámka k přípravě" value="${esc(entry.note)}"></label><button class="text-button">Znovu připravit <span aria-hidden="true">↗</span></button>`;
     article.querySelector("input").addEventListener("input", (event) => {
       const current = history.find(
         (item) => item.session.id === entry.session.id,
@@ -1044,13 +1035,11 @@ $("timerNavIcon").innerHTML = svg(
 $("journalNavIcon").innerHTML = svg(
   '<path d="M5 3h14v18H5ZM8 3v18M11 8h5M11 12h5"/>',
 );
-$("btnReset").innerHTML = icons.reset;
-$("btnNext").innerHTML = icons.next;
+$("resetIcon").innerHTML = icons.reset;
+$("nextIcon").innerHTML = icons.next;
 $("openHelp").innerHTML = icons.help;
 $("searchIcon").innerHTML = icons.search;
-$("tempIcon").innerHTML = icons.temp;
-$("leafIcon").innerHTML = icons.leaf;
-$("cupIcon").innerHTML = icons.cup;
+
 $("journalCount").textContent = history.length;
 if (
   session.status === "done" &&
@@ -1078,7 +1067,7 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
       .register("./sw.js")
       .then(() => navigator.serviceWorker.ready)
       .then(() => {
-        $("offlineStatus").textContent = "Připraveno i offline";
+        $("offlineStatus").textContent = "Offline dostupné";
       })
       .catch(() => {
         $("offlineStatus").textContent = "Offline režim není dostupný";
