@@ -1,17 +1,33 @@
 {
-  "name": "Gōng Fū Tea Timer",
-  "short_name": "Gōng Fū",
-  "description": "Časovač pro čajový obřad gōng fū chá — louhování po louhování, i offline.",
-  "lang": "cs",
+  "id": "./",
+  "name": "Gōng Fū Chá · Čajový časovač",
+  "short_name": "Čajový časovač",
+  "description": "Gongfu časovač s čajovými profily, vlastními recepty a deníkem nálevů. Funguje i offline.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#1a1612",
-  "theme_color": "#1a1612",
+  "background_color": "#f6f4ed",
+  "theme_color": "#233e35",
+  "categories": ["lifestyle", "utilities"],
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
-  ]
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "lang": "cs"
 }

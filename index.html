@@ -1,2288 +1,522 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="cs">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gōng Fū Tea Timer</title>
-<meta name="description" content="Časovač pro čajový obřad gōng fū chá — přednastavené čaje, louhování po louhování, deník a offline režim.">
-<meta name="theme-color" content="#1a1612" id="metaTheme">
-<meta name="color-scheme" content="dark light">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Gōng Fū">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<!-- Jen znaky pro pečetě čajů (绿白黄清岩红生熟凤茶) — pár kB místo celého čínského písma -->
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500&text=%E7%BB%BF%E7%99%BD%E9%BB%84%E6%B8%85%E5%B2%A9%E7%BA%A2%E7%94%9F%E7%86%9F%E5%87%A4%E8%8C%B6&display=swap" rel="stylesheet">
-<style>
-  /* ===== Barvy a motivy ===== */
-  :root {
-    --bg: #1a1612;
-    --bg-card: #231f1a;
-    --bg-elevated: #2c2620;
-    --bg-inset: #15120f;
-    --text: #ece2d4;
-    --text-muted: #a6978a;
-    --text-dim: #7f7162;
-    --accent: #c4956a;
-    --accent-strong: #d9ab7d;
-    --accent-ink: #1a1612;
-    --green: #86ab8a;
-    --red: #cf8472;
-    --track: #3a332c;
-    --line: rgba(196,149,106,.10);
-    --line-strong: rgba(196,149,106,.22);
-    --hover: rgba(196,149,106,.08);
-    --shadow: 0 10px 30px rgba(0,0,0,.35);
-    --glow-a: rgba(196,149,106,.07);
-    --glow-b: rgba(122,158,126,.05);
-    --knob: #fff8ef;
-    --seal-mix: 72%;
-    --tea: var(--accent);
-    color-scheme: dark;
-  }
-  :root[data-theme="light"] {
-    --bg: #f3ede3;
-    --bg-card: #fbf8f2;
-    --bg-elevated: #ffffff;
-    --bg-inset: #ece4d7;
-    --text: #2a221b;
-    --text-muted: #6b5c4d;
-    --text-dim: #8a7a69;
-    --accent: #9c6a3f;
-    --accent-strong: #87572f;
-    --accent-ink: #fbf8f2;
-    --green: #4f7d56;
-    --red: #b0543f;
-    --track: #e2d8c9;
-    --line: rgba(120,85,50,.12);
-    --line-strong: rgba(120,85,50,.24);
-    --hover: rgba(120,85,50,.07);
-    --shadow: 0 10px 30px rgba(80,55,30,.12);
-    --glow-a: rgba(196,149,106,.16);
-    --glow-b: rgba(122,158,126,.10);
-    --seal-mix: 58%;
-    color-scheme: light;
-  }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
-      --bg: #f3ede3;
-      --bg-card: #fbf8f2;
-      --bg-elevated: #ffffff;
-      --bg-inset: #ece4d7;
-      --text: #2a221b;
-      --text-muted: #6b5c4d;
-      --text-dim: #8a7a69;
-      --accent: #9c6a3f;
-      --accent-strong: #87572f;
-      --accent-ink: #fbf8f2;
-      --green: #4f7d56;
-      --red: #b0543f;
-      --track: #e2d8c9;
-      --line: rgba(120,85,50,.12);
-      --line-strong: rgba(120,85,50,.24);
-      --hover: rgba(120,85,50,.07);
-      --shadow: 0 10px 30px rgba(80,55,30,.12);
-      --glow-a: rgba(196,149,106,.16);
-      --glow-b: rgba(122,158,126,.10);
-      --seal-mix: 58%;
-      color-scheme: light;
-    }
-  }
-
-  /* ===== Základ ===== */
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-  [hidden] { display: none !important; }
-  html { background: var(--bg); -webkit-text-size-adjust: 100%; }
-  body {
-    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100dvh;
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
-    -webkit-tap-highlight-color: transparent;
-  }
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(ellipse at 20% 0%, var(--glow-a) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 100%, var(--glow-b) 0%, transparent 60%);
-    pointer-events: none;
-    z-index: 0;
-  }
-  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; touch-action: manipulation; }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .unit { text-transform: none; letter-spacing: .04em; }
-  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-
-  svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-
-  .app {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    max-width: 480px;
-    min-height: 100dvh;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    padding: env(safe-area-inset-top) max(20px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(20px, env(safe-area-inset-left));
-  }
-  .screen { display: none; flex-direction: column; flex: 1; animation: fadeIn .35s ease; }
-  .screen.active { display: flex; }
-
-  .icon-btn {
-    width: 44px; height: 44px;
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    color: var(--text-muted);
-    transition: color .2s, background .2s;
-    flex-shrink: 0;
-  }
-  .icon-btn:hover { color: var(--accent); background: var(--hover); }
-  .icon-btn.off { color: var(--text-dim); opacity: .6; }
-
-  /* ===== Tlačítka ===== */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 46px;
-    padding: 0 18px;
-    border-radius: 12px;
-    font-size: .84rem;
-    font-weight: 500;
-    letter-spacing: .02em;
-    background: var(--bg-elevated);
-    border: 1px solid var(--line-strong);
-    color: var(--text);
-    transition: transform .15s, background .2s, border-color .2s, color .2s;
-  }
-  .btn:hover { border-color: var(--accent); }
-  .btn:active { transform: scale(.98); }
-  .btn.primary {
-    background: var(--accent);
-    color: var(--accent-ink);
-    border-color: transparent;
-    box-shadow: 0 6px 20px rgba(196,149,106,.25);
-  }
-  .btn.primary:hover { background: var(--accent-strong); }
-  .btn.ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
-  .btn.ghost:hover { color: var(--accent); }
-  .btn.danger { color: var(--red); }
-  .btn.sm { min-height: 36px; padding: 0 12px; font-size: .76rem; border-radius: 10px; }
-  .btn svg.i { width: 18px; height: 18px; }
-  .link { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-strong); }
-
-  /* ===== Pečeť čaje ===== */
-  .seal {
-    --s: 42px;
-    width: var(--s); height: var(--s);
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-    background: rgba(196,149,106,.12);
-    background: color-mix(in srgb, var(--tea) 16%, transparent);
-    box-shadow: inset 0 0 0 1px var(--line-strong);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tea) 42%, transparent);
-    color: var(--tea);
-    color: color-mix(in srgb, var(--tea) var(--seal-mix), var(--text));
-    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
-    font-weight: 500;
-    font-size: calc(var(--s) * .5);
-    line-height: 1;
-  }
-  .seal.lat { font-family: 'Cormorant Garamond', serif; font-size: calc(var(--s) * .58); font-weight: 500; }
-  .seal.sm { --s: 36px; border-radius: 10px; }
-  .seal.lg { --s: 54px; border-radius: 15px; }
-
-  /* ===== Výběr čaje ===== */
-  .masthead {
-    display: grid;
-    grid-template-columns: 44px 1fr 44px;
-    align-items: center;
-    padding: 22px 0 6px;
-  }
-  .brand { text-align: center; }
-  .brand h1 {
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 300;
-    font-size: 1.7rem;
-    letter-spacing: .16em;
-    color: var(--accent);
-    text-transform: uppercase;
-    line-height: 1.1;
-  }
-  .brand .sub {
-    font-size: .64rem;
-    letter-spacing: .32em;
-    color: var(--text-dim);
-    margin-top: 6px;
-    text-transform: uppercase;
-  }
-
-  .section-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: .64rem;
-    letter-spacing: .22em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin: 22px 2px 10px;
-  }
-  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-
-  .tea-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .tea-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    min-height: 152px;
-    padding: 16px 14px 14px;
-    background: var(--bg-card);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    overflow: hidden;
-    isolation: isolate;
-    transition: transform .25s ease, border-color .25s, box-shadow .25s;
-  }
-  .tea-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: var(--tea);
-    opacity: .55;
-    transition: opacity .25s;
-  }
-  .tea-card::after {
-    content: '';
-    position: absolute;
-    inset: -40% -40% auto auto;
-    width: 120%; height: 120%;
-    background: radial-gradient(circle at 70% 30%, var(--tea), transparent 60%);
-    opacity: 0;
-    z-index: -1;
-    transition: opacity .35s;
-  }
-  .tea-card:hover { transform: translateY(-2px); border-color: var(--line-strong); box-shadow: var(--shadow); }
-  .tea-card:hover::before { opacity: 1; }
-  .tea-card:hover::after { opacity: .08; }
-  .tea-card:active { transform: translateY(0) scale(.99); }
-  .card-hit { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
-  .card-hit:focus-visible { outline-offset: -3px; }
-  .card-edit {
-    position: absolute;
-    top: 8px; right: 8px;
-    z-index: 2;
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    display: grid;
-    place-items: center;
-    color: var(--text-dim);
-    transition: color .2s, background .2s;
-  }
-  .card-edit:hover { color: var(--accent); background: var(--hover); }
-  .card-edit svg.i { width: 17px; height: 17px; }
-  .tea-card .name {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.2rem;
-    font-weight: 500;
-    line-height: 1.15;
-    margin-top: 12px;
-  }
-  .tea-card .desc { flex: 1; font-size: .68rem; line-height: 1.45; color: var(--text-dim); margin-top: 3px; }
-  .tea-card .meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px 6px;
-    margin-top: 10px;
-    font-size: .68rem;
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .tea-card .meta span + span::before { content: '·'; margin-right: 6px; color: var(--text-dim); }
-  .tea-card .badge { color: var(--accent); }
-  .tea-card.add {
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    text-align: center;
-    border-style: dashed;
-    border-color: var(--line-strong);
-    background: transparent;
-    color: var(--text-muted);
-    font-size: .8rem;
-  }
-  .tea-card.add::before { display: none; }
-  .tea-card.add .plus {
-    width: 42px; height: 42px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--line-strong);
-    color: var(--accent);
-  }
-  .tea-card.add:hover { color: var(--accent); }
-
-  .resume {
-    --tea: var(--accent);
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 14px;
-    padding: 12px 12px 12px 14px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--tea) 15%, var(--bg-card)), var(--bg-card) 70%);
-    border: 1px solid color-mix(in srgb, var(--tea) 35%, transparent);
-    animation: fadeIn .35s ease;
-  }
-  .resume-hit { position: absolute; inset: 0; border-radius: inherit; z-index: 1; }
-  .resume .r-text { flex: 1; min-width: 0; }
-  .resume .r-go {
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: var(--accent);
-    color: var(--accent-ink);
-    flex-shrink: 0;
-    box-shadow: 0 4px 14px rgba(196,149,106,.3);
-  }
-  .resume .r-go svg.i { width: 18px; height: 18px; }
-  .resume .r-end { position: relative; z-index: 2; margin: -4px -4px -4px -6px; }
-  .resume:hover .r-go { background: var(--accent-strong); }
-  .resume .r-title { font-family: 'Cormorant Garamond', serif; font-size: 1.08rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .resume .r-sub { font-size: .72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  .foot {
-    text-align: center;
-    font-size: .72rem;
-    color: var(--text-dim);
-    padding: 26px 0 28px;
-  }
-  .foot b { color: var(--text-muted); font-weight: 500; }
-
-  /* ===== Horní lišta (časovač, deník) ===== */
-  .topbar { display: flex; align-items: center; gap: 4px; padding: 14px 0 4px; margin: 0 -8px; }
-  .topbar-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 4px; }
-  .topbar-title > div { min-width: 0; }
-  .t-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.22rem;
-    font-weight: 500;
-    line-height: 1.15;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .t-desc { font-size: .68rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  /* ===== Časovač ===== */
-  .params { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-  .param {
-    text-align: center;
-    padding: 10px 6px 9px;
-    background: var(--bg-card);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    transition: border-color .2s;
-  }
-  button.param:hover { border-color: var(--line-strong); }
-  .param .val {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.24rem;
-    font-weight: 500;
-    color: var(--accent);
-    line-height: 1.2;
-    white-space: nowrap;
-    font-variant-numeric: lining-nums;
-  }
-  .param .lbl { font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-top: 2px; white-space: nowrap; }
-  button.param .lbl { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 2px; }
-
-  .pills {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    padding: 16px 12px 6px;
-    margin: 0 -12px;
-    scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
-  }
-  .pills::-webkit-scrollbar { display: none; }
-  .pill {
-    flex: 0 0 auto;
-    width: 42px;
-    padding: 7px 0 6px;
-    border-radius: 21px;
-    border: 1.5px solid var(--track);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
-    color: var(--text-dim);
-    transition: border-color .25s, color .25s, background .25s, box-shadow .25s, transform .25s;
-  }
-  .pill:first-child { margin-left: auto; }
-  .pill:last-child { margin-right: auto; }
-  .pill .n { font-size: .8rem; font-weight: 600; line-height: 1.15; height: 1.15em; display: grid; place-items: center; }
-  .pill .n svg.i { width: 13px; height: 13px; stroke-width: 2; }
-  .pill .s { font-size: .58rem; font-variant-numeric: tabular-nums; opacity: .85; white-space: nowrap; }
-  .pill:hover { border-color: var(--line-strong); color: var(--text-muted); }
-  .pill.done {
-    border-color: var(--green);
-    border-color: color-mix(in srgb, var(--green) 65%, transparent);
-    color: var(--green);
-    background: rgba(122,158,126,.12);
-    background: color-mix(in srgb, var(--green) 12%, transparent);
-  }
-  .pill.active {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(196,149,106,.13);
-    background: color-mix(in srgb, var(--accent) 13%, transparent);
-    box-shadow: 0 0 14px rgba(196,149,106,.22);
-    transform: translateY(-2px);
-  }
-
-  .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 0 4px; }
-  .ring-wrap {
-    --size: min(78vw, 300px, 42dvh);
-    position: relative;
-    width: var(--size);
-    height: var(--size);
-    margin: 8px 0 20px;
-  }
-  .ring-wrap::before {
-    content: '';
-    position: absolute;
-    inset: 9%;
-    border-radius: 50%;
-    box-shadow: 0 0 60px color-mix(in srgb, var(--tea) 35%, transparent);
-    opacity: 0;
-    transition: opacity .6s;
-  }
-  [data-phase="running"] .ring-wrap::before { animation: breathe 4s ease-in-out infinite; }
-  .ring { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; display: block; }
-  .ring .track { fill: none; stroke: var(--track); stroke-width: 5; }
-  .ring .progress {
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 5;
-    stroke-linecap: round;
-    transition: stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1), stroke .4s;
-    filter: drop-shadow(0 0 6px rgba(196,149,106,.35));
-  }
-  [data-phase="running"] .ring .progress { transition: stroke .4s; }
-  [data-phase="done"] .ring .progress { stroke: var(--green); filter: drop-shadow(0 0 8px rgba(122,158,126,.45)); }
-  .ring .liquor { opacity: calc(.06 + var(--steep, 0) * .94); transition: opacity .6s; }
-  [data-phase="running"] .ring .liquor { transition: none; }
-  .ring .liquor-stop { stop-color: var(--tea); }
-
-  .ring-inner {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-  }
-  .face {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 22px 10px;
-    border-radius: 28px;
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-  .face-label { font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
-  .face-time {
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 300;
-    font-size: calc(var(--size) * .26);
-    line-height: .95;
-    letter-spacing: .01em;
-    font-variant-numeric: lining-nums tabular-nums;
-    color: var(--text);
-  }
-  [data-phase="done"] .face-time { color: var(--green); animation: pulse 1.2s ease-in-out infinite; }
-  [data-phase="done"] .face-label { color: var(--green); }
-  [data-phase="paused"] .face-time { animation: pulse 2.4s ease-in-out infinite; }
-  .adjust { display: flex; gap: 8px; margin-top: 4px; }
-  .adjust button {
-    min-width: 52px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    border: 1px solid var(--line);
-    font-size: .7rem;
-    color: var(--text-dim);
-    font-variant-numeric: tabular-nums;
-    transition: color .2s, border-color .2s, opacity .2s;
-  }
-  .adjust button:hover { color: var(--accent); border-color: var(--line-strong); }
-  .adjust button:disabled { opacity: .25; pointer-events: none; }
-
-  .controls { display: flex; align-items: center; gap: 24px; }
-  .ctrl { display: grid; place-items: center; border-radius: 50%; transition: transform .15s, background .2s, box-shadow .2s, color .2s, opacity .2s; }
-  .ctrl:hover { transform: scale(1.05); }
-  .ctrl:active { transform: scale(.94); }
-  .ctrl:disabled { opacity: .3; pointer-events: none; }
-  .ctrl.main {
-    width: 76px; height: 76px;
-    background: var(--accent);
-    color: var(--accent-ink);
-    box-shadow: 0 8px 28px rgba(196,149,106,.32);
-  }
-  .ctrl.main svg.i { width: 30px; height: 30px; }
-  [data-phase="running"] .ctrl.main {
-    background: var(--bg-elevated);
-    color: var(--accent);
-    box-shadow: inset 0 0 0 1.5px var(--accent), 0 8px 28px rgba(0,0,0,.18);
-  }
-  .ctrl.sec {
-    width: 52px; height: 52px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--line);
-    color: var(--text-muted);
-  }
-  .ctrl.sec:hover { color: var(--accent); border-color: var(--line-strong); }
-
-  .stats {
-    min-height: 1.2em;
-    margin-top: 16px;
-    font-size: .7rem;
-    color: var(--text-dim);
-    letter-spacing: .02em;
-    font-variant-numeric: tabular-nums;
-    text-align: center;
-  }
-  .stats b { font-weight: 500; color: var(--text-muted); }
-
-  .tip {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    margin: 14px 0 20px;
-    padding: 14px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-  }
-  .tip svg.i { width: 18px; height: 18px; margin-top: 2px; color: color-mix(in srgb, var(--tea) 70%, var(--text)); }
-  .tip p { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1.02rem; line-height: 1.4; color: var(--text-muted); }
-
-  /* ===== Deník ===== */
-  .j-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 18px; }
-  .j-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 28px; }
-  .j-day { font-size: .64rem; letter-spacing: .2em; text-transform: uppercase; color: var(--text-dim); margin: 10px 2px 0; }
-  .j-item {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 4px 12px;
-    align-items: start;
-    padding: 14px;
-    background: var(--bg-card);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-  }
-  .j-item .seal { grid-row: span 2; }
-  .j-item .j-name { font-family: 'Cormorant Garamond', serif; font-size: 1.12rem; font-weight: 500; line-height: 1.2; }
-  .j-item .j-meta { font-size: .7rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
-  .j-item .j-note {
-    grid-column: 2 / -1;
-    font-family: 'Cormorant Garamond', serif;
-    font-style: italic;
-    font-size: 1rem;
-    line-height: 1.4;
-    color: var(--text-muted);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    margin-top: 4px;
-  }
-  .j-item .icon-btn { width: 36px; height: 36px; margin: -6px -6px 0 0; }
-  .j-item .icon-btn svg.i { width: 17px; height: 17px; }
-  .leaves { display: inline-flex; gap: 2px; vertical-align: -2px; margin-left: 6px; color: var(--accent); }
-  .leaves svg.i { width: 12px; height: 12px; stroke-width: 1.6; }
-  .leaves .on { fill: currentColor; }
-  .leaves .off { opacity: .35; }
-  .empty { text-align: center; color: var(--text-dim); padding: 56px 24px; font-size: .85rem; line-height: 1.6; }
-  .empty .glyph { font-family: 'Noto Serif SC', 'Songti SC', serif; font-size: 2.6rem; color: var(--accent); opacity: .5; margin-bottom: 12px; }
-
-  /* ===== Spodní panely (dialogy) ===== */
-  dialog.sheet {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    max-height: none;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    overflow: hidden;
-  }
-  dialog.sheet[open] { display: flex; align-items: flex-end; justify-content: center; }
-  dialog.sheet::backdrop { background: rgba(10,8,6,.6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
-  .panel {
-    width: 100%;
-    max-width: 480px;
-    max-height: 92dvh;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    background: var(--bg-card);
-    border: 1px solid var(--line-strong);
-    border-bottom: none;
-    border-radius: 22px 22px 0 0;
-    padding: 8px 20px calc(20px + env(safe-area-inset-bottom));
-    box-shadow: 0 -20px 60px rgba(0,0,0,.35);
-    animation: sheetUp .32s cubic-bezier(.2,.8,.2,1);
-  }
-  .panel::before { content: ''; display: block; width: 38px; height: 4px; border-radius: 2px; background: var(--track); margin: 4px auto 8px; }
-  @media (min-width: 620px) {
-    dialog.sheet[open] { align-items: center; }
-    .panel { border-radius: 22px; border-bottom: 1px solid var(--line-strong); max-height: 88dvh; padding-bottom: 22px; animation: pop .22s ease; }
-    .panel::before { display: none; }
-  }
-  .panel.small { max-width: 380px; }
-  .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 16px; }
-  .sheet-head h2 { font-family: 'Cormorant Garamond', serif; font-weight: 500; font-size: 1.5rem; line-height: 1.15; }
-  .sheet-head .icon-btn { margin-right: -10px; }
-  .sheet-actions { display: flex; gap: 10px; margin-top: 18px; }
-  .sheet-actions .btn { flex: 1; }
-  .sheet-actions.col { flex-direction: column; }
-
-  .group { padding: 4px 0 14px; }
-  .group + .group { border-top: 1px solid var(--line); padding-top: 16px; }
-  .group-label { font-size: .64rem; letter-spacing: .18em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
-  .hint { font-size: .74rem; color: var(--text-dim); line-height: 1.5; margin-top: 8px; }
-  .fine { font-size: .7rem; color: var(--text-dim); line-height: 1.6; text-align: center; margin-top: 8px; }
-  @media (hover: none) { .kbd-hint { display: none; } }
-  .fine kbd { font: inherit; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--text-muted); }
-
-  .field { display: block; margin-bottom: 14px; }
-  .field > span, .field-label { display: block; font-size: .64rem; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
-  input[type="text"], input[type="number"], textarea {
-    width: 100%;
-    padding: 11px 12px;
-    background: var(--bg-inset);
-    border: 1px solid var(--line-strong);
-    border-radius: 10px;
-    color: var(--text);
-    font: 400 16px/1.35 'DM Sans', system-ui, sans-serif;
-    outline: none;
-    transition: border-color .2s, box-shadow .2s;
-  }
-  textarea { resize: vertical; min-height: 64px; }
-  input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,149,106,.18); }
-  input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
-  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  ::placeholder { color: var(--text-dim); opacity: .8; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-  .range-in { display: flex; align-items: center; gap: 6px; color: var(--text-dim); }
-  .range-in input { min-width: 0; }
-
-  .switch-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 11px 0;
-    cursor: pointer;
-  }
-  .switch-row + .switch-row { border-top: 1px solid var(--line); }
-  .switch-row b { display: block; font-weight: 500; font-size: .9rem; }
-  .switch-row small { display: block; font-size: .72rem; color: var(--text-dim); margin-top: 2px; line-height: 1.4; }
-  input.switch {
-    -webkit-appearance: none;
-    appearance: none;
-    position: relative;
-    flex-shrink: 0;
-    width: 46px; height: 28px;
-    border-radius: 14px;
-    background: var(--track);
-    cursor: pointer;
-    transition: background .2s;
-  }
-  input.switch::after {
-    content: '';
-    position: absolute;
-    top: 3px; left: 3px;
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    box-shadow: 0 1px 3px rgba(0,0,0,.3);
-    transition: transform .2s, background .2s;
-  }
-  input.switch:checked { background: var(--accent); }
-  input.switch:checked::after { transform: translateX(18px); background: var(--knob); }
-
-  .seg {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    gap: 3px;
-    padding: 3px;
-    background: var(--bg-inset);
-    border: 1px solid var(--line);
-    border-radius: 11px;
-  }
-  .seg label { position: relative; cursor: pointer; }
-  .seg input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .seg span { display: block; text-align: center; padding: 8px 6px; border-radius: 8px; font-size: .8rem; color: var(--text-muted); transition: background .2s, color .2s, box-shadow .2s; }
-  .seg input:checked + span { background: var(--bg-elevated); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.18), inset 0 0 0 1px var(--line-strong); }
-  .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-  .swatches { display: grid; grid-template-columns: repeat(10, minmax(0, 30px)); justify-content: space-between; gap: 4px; }
-  .swatches label { position: relative; cursor: pointer; }
-  .swatches input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
-  .swatches span {
-    display: block;
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: var(--c);
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,.2);
-    transition: transform .15s, box-shadow .15s;
-  }
-  .swatches input:checked + span { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--c); transform: scale(1.05); }
-  .swatches input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 4px; }
-
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip {
-    padding: 7px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--line-strong);
-    font-size: .76rem;
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-    transition: color .2s, border-color .2s, background .2s;
-  }
-  .chip:hover { color: var(--accent); }
-  .chips.fit { display: grid; grid-template-columns: repeat(5, 1fr); }
-  .chips.fit .chip { padding: 8px 0; text-align: center; white-space: nowrap; }
-  .chip.on { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); color: var(--accent); }
-
-  .stepper { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-  .stepper .round {
-    width: 44px; height: 44px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: var(--bg-elevated);
-    border: 1px solid var(--line-strong);
-    color: var(--text-muted);
-  }
-  .stepper .round:hover { color: var(--accent); border-color: var(--accent); }
-  .stepper .val { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 400; font-variant-numeric: lining-nums; }
-  .stepper .val small { font-family: 'DM Sans', sans-serif; font-size: .8rem; color: var(--text-dim); margin-left: 4px; }
-
-  .preview { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 4px; min-height: 26px; }
-  .preview span {
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: var(--bg-inset);
-    border: 1px solid var(--line);
-    font-size: .7rem;
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .preview .sum { background: none; border: none; color: var(--text-dim); }
-  .err { color: var(--red); font-size: .78rem; margin-top: 8px; }
-
-  .sum-head { display: flex; align-items: center; gap: 14px; margin: 4px 0 16px; }
-  .sum-head > div { flex: 1; min-width: 0; }
-  .sum-head h2 { font-family: 'Cormorant Garamond', serif; font-weight: 500; font-size: 1.5rem; line-height: 1.15; }
-  .sum-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
-  .rating { display: flex; gap: 4px; }
-  .rating button { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px; color: var(--text-dim); transition: color .15s, transform .15s; }
-  .rating button:hover { transform: scale(1.1); }
-  .rating button.on { color: var(--accent); }
-  .rating button.on svg.i { fill: currentColor; fill-opacity: .9; }
-  .rating svg.i { width: 26px; height: 26px; }
-
-  .install {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 14px;
-    border-radius: 14px;
-    background: var(--bg-inset);
-    border: 1px solid var(--line);
-    margin-top: 4px;
-  }
-  .install img { width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0; }
-  .install b { font-weight: 500; font-size: .88rem; }
-  .install p b { font-size: inherit; color: var(--text-muted); }
-  .install p { font-size: .74rem; color: var(--text-dim); line-height: 1.5; margin-top: 2px; }
-  .install .btn { margin-top: 10px; }
-
-  .toast {
-    position: fixed;
-    left: 50%;
-    bottom: calc(24px + env(safe-area-inset-bottom));
-    z-index: 50;
-    max-width: calc(100% - 40px);
-    padding: 11px 18px;
-    border-radius: 999px;
-    background: var(--text);
-    color: var(--bg);
-    font-size: .8rem;
-    font-weight: 500;
-    box-shadow: var(--shadow);
-    opacity: 0;
-    transform: translate(-50%, 16px);
-    transition: opacity .25s, transform .25s;
-    pointer-events: none;
-  }
-  .toast.show { opacity: 1; transform: translate(-50%, 0); }
-
-  /* ===== Animace ===== */
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  @keyframes sheetUp { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }
-  @keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
-  @keyframes breathe { 0%, 100% { opacity: .35; } 50% { opacity: .9; } }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-  }
-
-  @media (max-height: 700px) {
-    .params { margin-top: 6px; }
-    .param { padding: 7px 4px 6px; }
-    .pills { padding-top: 10px; }
-    .ring-wrap { margin: 4px 0 12px; }
-    .tip { margin-top: 10px; }
-  }
-</style>
-</head>
-<body>
-
-<!-- Ikony -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6a.8.8 0 0 0 1.2.7l10.5-6.8a.8.8 0 0 0 0-1.4L9.2 4.5A.8.8 0 0 0 8 5.2z" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" stroke="none"/><rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-next" viewBox="0 0 24 24"><path d="M5.5 6.2v11.6a.7.7 0 0 0 1.1.6l8.6-5.8a.7.7 0 0 0 0-1.2L6.6 5.6a.7.7 0 0 0-1.1.6z" fill="currentColor" stroke="none"/><rect x="16.6" y="5.5" width="2.4" height="13" rx="1" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
-  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/></symbol>
-  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
-  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
-  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 18.5V5.5A2 2 0 0 1 7 3.5h12v14H7a2 2 0 0 0-2 2 2 2 0 0 0 2 2h12"/><path d="M9 8h6"/></symbol>
-  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5l4.5 4v-13l-4.5 4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18.2 6.3a8 8 0 0 1 0 11.4"/></symbol>
-  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5l4.5 4v-13l-4.5 4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
-  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15"/><path d="M9.5 7V4.5h5V7"/><path d="M6.5 7l.9 12.2a1 1 0 0 0 1 .8h7.2a1 1 0 0 0 1-.8L17.5 7"/></symbol>
-  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.5c3.2 4.1 5.5 7.1 5.5 10.1a5.5 5.5 0 0 1-11 0c0-3 2.3-6 5.5-10.1z"/></symbol>
-  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19.5C5 11 10.5 5 19.5 4.5 19.5 13.5 14 19.5 5 19.5z"/><path d="M5 19.5c3.5-4.5 6.5-7.5 10-10"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
-</svg>
-
-<div class="app">
-
-  <!-- ===== VÝBĚR ČAJE ===== -->
-  <section class="screen active" id="viewSelect" aria-label="Výběr čaje">
-    <header class="masthead">
-      <button class="icon-btn" id="btnJournal" aria-label="Deník"><svg class="i"><use href="#i-book"/></svg></button>
-      <div class="brand">
-        <h1>Gōng Fū Chá</h1>
-        <div class="sub">Tea Timer · 茶</div>
-      </div>
-      <button class="icon-btn" id="btnSettings" aria-label="Nastavení"><svg class="i"><use href="#i-sliders"/></svg></button>
-    </header>
-
-    <div class="resume" id="resume" hidden>
-      <button class="resume-hit" id="rContinue" aria-label="Pokračovat v rozpracovaném sezení"></button>
-      <span id="rSeal"></span>
-      <div class="r-text">
-        <div class="r-title" id="rTitle"></div>
-        <div class="r-sub" id="rSub"></div>
-      </div>
-      <span class="r-go" aria-hidden="true"><svg class="i"><use href="#i-play"/></svg></span>
-      <button class="icon-btn r-end" id="rEnd" aria-label="Ukončit sezení"><svg class="i"><use href="#i-x"/></svg></button>
-    </div>
-
-    <div class="section-label">Čaje</div>
-    <div class="tea-grid" id="gridPresets"></div>
-
-    <div class="section-label">Moje čaje</div>
-    <div class="tea-grid" id="gridCustom"></div>
-
-    <p class="foot">Gramáž je spočítaná pro nádobu <b id="footVessel">100 ml</b> · <button class="link" id="btnFootVessel">změnit</button></p>
-  </section>
-
-  <!-- ===== ČASOVAČ ===== -->
-  <section class="screen" id="viewTimer" aria-label="Časovač" data-phase="idle">
-    <div class="topbar">
-      <button class="icon-btn" id="btnBack" aria-label="Zpět na výběr čaje"><svg class="i"><use href="#i-back"/></svg></button>
-      <div class="topbar-title">
-        <span id="tSeal"></span>
-        <div>
-          <div class="t-name" id="tName"></div>
-          <div class="t-desc" id="tDesc"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#233e35" />
+    <meta
+      name="description"
+      content="Gongfu časovač s devíti čajovými profily, vlastními recepty a deníkem nálevů. Funguje i offline."
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta property="og:title" content="Gōng Fū Chá · Čajový časovač" />
+    <meta
+      property="og:description"
+      content="Čajový časovač pro iPhone s vlastními recepty, deníkem a offline režimem."
+    />
+    <title>Gōng Fū Chá · Čajový časovač</title>
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">Přejít k přípravě čaje</a>
+    <div class="app-shell">
+      <header class="site-header">
+        <a href="./" class="brand" aria-label="Gōng Fū Chá — úvod"
+          ><span class="brand-seal" aria-hidden="true">茶</span
+          ><span><strong>Gōng Fū Chá</strong></span></a
+        >
+        <div class="header-actions">
+          <button
+            id="openSettings"
+            class="icon-button"
+            aria-label="Nastavení"
+            title="Nastavení"
+          >
+            ⚙
+          </button>
+          <button
+            id="soundToggle"
+            class="icon-button"
+            aria-label="Vypnout zvuk"
+            aria-pressed="true"
+            title="Zvuk zapnutý"
+          ></button
+          ><button
+            id="openHelp"
+            class="icon-button"
+            aria-label="Jak připravit gongfu čaj"
+            title="Průvodce přípravou"
+          ></button>
         </div>
-      </div>
-      <button class="icon-btn" id="btnEdit" aria-label="Upravit parametry čaje"><svg class="i"><use href="#i-pencil"/></svg></button>
-      <button class="icon-btn" id="btnSound" aria-label="Vypnout zvuk" aria-pressed="true"><svg class="i"><use href="#i-vol"/></svg></button>
-    </div>
+      </header>
 
-    <div class="params">
-      <div class="param"><div class="val" id="pTemp"></div><div class="lbl">Voda</div></div>
-      <button class="param" id="pLeafBtn" aria-label="Změnit velikost nádoby"><div class="val" id="pLeaf"></div><div class="lbl" id="pLeafLbl"></div></button>
-      <div class="param"><div class="val" id="pCount"></div><div class="lbl">Louhování</div></div>
-    </div>
+      <section class="intro" aria-labelledby="introTitle">
+        <div class="intro-copy">
+          <h1 id="introTitle">Čajový<br />časovač</h1>
+        </div>
+        <div class="intro-photo">
+          <img
+            src="./assets/tea-still-life.webp"
+            alt="Celadonový gaiwan a šálek jantarového čaje na lněném plátně"
+            width="1536"
+            height="1024"
+            fetchpriority="high"
+          />
+        </div>
+      </section>
 
-    <div class="pills" id="pills" aria-label="Louhování"></div>
-
-    <div class="stage">
-      <div class="ring-wrap">
-        <svg class="ring" viewBox="0 0 300 300" aria-hidden="true">
-          <defs>
-            <radialGradient id="liqGrad" cx="50%" cy="50%" r="50%">
-              <stop class="liquor-stop" offset="0%" stop-opacity=".42"/>
-              <stop class="liquor-stop" offset="75%" stop-opacity=".26"/>
-              <stop class="liquor-stop" offset="100%" stop-opacity=".12"/>
-            </radialGradient>
-          </defs>
-          <circle class="liquor" cx="150" cy="150" r="128" fill="url(#liqGrad)"/>
-          <circle class="track" cx="150" cy="150" r="142"/>
-          <circle class="progress" id="ringProg" cx="150" cy="150" r="142"/>
-        </svg>
-        <div class="ring-inner">
-          <div class="face" id="face">
-            <span class="face-label" id="tLabel"></span>
-            <span class="face-time" id="tTime" role="timer">0:00</span>
+      <nav class="mobile-tabs" aria-label="Hlavní navigace">
+        <button id="showCollection" aria-pressed="true">
+          <span id="collectionNavIcon" aria-hidden="true"></span
+          ><span>Čaje</span>
+        </button>
+        <button id="showTimer" aria-pressed="false">
+          <span id="timerNavIcon" aria-hidden="true"></span><span>Časovač</span
+          ><span id="timerBadge" hidden aria-hidden="true"></span>
+        </button>
+        <button id="openJournal" aria-label="Čajový deník">
+          <span id="journalNavIcon" aria-hidden="true"></span
+          ><span>Deník <span id="journalCount" class="count">0</span></span>
+        </button>
+      </nav>
+      <main class="workspace" id="workspace">
+        <section
+          class="collection"
+          id="collectionPanel"
+          aria-labelledby="collectionTitle"
+        >
+          <div class="section-heading">
+            <div>
+              <h2 id="collectionTitle">Vyberte čaj</h2>
+            </div>
+            <button class="text-button" id="addTea">
+              <span aria-hidden="true">+</span> Vlastní čaj
+            </button>
           </div>
-          <div class="adjust">
-            <button id="btnMinus" aria-label="Ubrat 5 sekund">−5 s</button>
-            <button id="btnPlus" aria-label="Přidat 5 sekund">+5 s</button>
+          <div class="collection-tools">
+            <div class="filters" role="group" aria-label="Filtrovat čaje">
+              <button
+                class="filter active"
+                data-filter="all"
+                aria-pressed="true"
+              >
+                Všechny</button
+              ><button
+                class="filter"
+                data-filter="favorites"
+                aria-pressed="false"
+              >
+                Oblíbené</button
+              ><button class="filter" data-filter="custom" aria-pressed="false">
+                Vlastní
+              </button>
+            </div>
+            <label class="search-field"
+              ><span id="searchIcon" aria-hidden="true"></span
+              ><input
+                id="teaSearch"
+                type="search"
+                placeholder="Najít čaj…"
+                aria-label="Hledat čaj"
+                autocomplete="off"
+            /></label>
           </div>
-        </div>
-      </div>
+          <div class="tea-grid" id="teaGrid"></div>
+        </section>
 
-      <div class="controls">
-        <button class="ctrl sec" id="btnReset" aria-label="Louhování znovu od začátku"><svg class="i"><use href="#i-reset"/></svg></button>
-        <button class="ctrl main" id="btnPlay" aria-label="Spustit"><svg class="i"><use href="#i-play"/></svg></button>
-        <button class="ctrl sec" id="btnNext" aria-label="Další louhování"><svg class="i"><use href="#i-next"/></svg></button>
-      </div>
-      <div class="stats" id="tStats"></div>
+        <section
+          class="brewing"
+          id="timerPanel"
+          aria-labelledby="timerTeaName"
+          tabindex="-1"
+        >
+          <div class="timer-card" id="timerCard">
+            <div class="timer-card-top">
+              <div>
+                <h2 id="timerTeaName">Oolong světlý</h2>
+                <p id="timerTeaDetail">Tiě Guān Yīn, Āli Shān</p>
+              </div>
+              <button id="editRecipe" class="text-button" hidden>
+                Upravit
+              </button>
+            </div>
+            <div class="preparation">
+              <div class="brew-params">
+                <div class="param">
+                  <small>Voda</small
+                  ><strong id="paramTemp">90–95<span>°C</span></strong>
+                </div>
+                <div class="param">
+                  <small>Lístky</small
+                  ><strong id="paramGrams">5<span>g</span></strong
+                  ><span id="paramRatio" class="sr-only">5 g / 100 ml</span>
+                </div>
+                <div class="param">
+                  <label for="vesselVolume">Nádoba</label>
+                  <div class="volume-label">
+                    <input
+                      id="vesselVolume"
+                      aria-label="Objem nádoby v mililitrech"
+                      type="number"
+                      value="100"
+                      min="30"
+                      max="1000"
+                      step="1"
+                      inputmode="numeric"
+                    /><span>ml</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="timer-focus">
+              <div class="timer-phase">
+                <span id="timerLabel">1. nálev</span
+                ><span id="timerStatus" role="status">Připraveno</span>
+              </div>
+              <span
+                class="timer-time"
+                id="timerTime"
+                role="timer"
+                aria-label="Zbývá 20 sekund"
+                >0:20</span
+              >
+              <div class="timer-display">
+                <canvas id="teaScene" aria-hidden="true"></canvas>
+              </div>
+              <div class="time-adjust">
+                <button id="lessTime" aria-label="Zkrátit nálev o 5 sekund">
+                  −5 s</button
+                ><button id="moreTime" aria-label="Prodloužit nálev o 5 sekund">
+                  +5 s
+                </button>
+              </div>
+            </div>
+            <button id="btnStart" class="start-button">
+              <span id="startIcon" aria-hidden="true"></span
+              ><span id="startLabel">Spustit</span>
+            </button>
+            <div class="timer-controls">
+              <button
+                id="btnReset"
+                class="timer-secondary"
+                aria-label="Vynulovat aktuální nálev"
+              >
+                <span id="resetIcon" aria-hidden="true"></span>Znovu</button
+              ><button
+                id="btnNext"
+                class="timer-secondary"
+                aria-label="Další nálev"
+              >
+                Další nálev<span id="nextIcon" aria-hidden="true"></span>
+              </button>
+            </div>
+            <p class="timer-hint" id="timerHint" hidden></p>
+            <div class="infusions-heading">
+              <h3>Nálevy</h3>
+              <span id="infusionsCount">0 / 10 hotovo</span>
+            </div>
+            <div
+              class="infusions-strip"
+              id="infusionsStrip"
+              aria-label="Jednotlivé nálevy"
+            ></div>
+          </div>
+          <button id="addInfusion" class="text-button">Přidat nálev</button>
+          <details class="brew-advice">
+            <summary>Doporučení k přípravě</summary>
+            <p class="brew-tip" id="brewTip"></p>
+          </details>
+          <span class="saved-indicator" id="saveIndicator" hidden
+            >Průběžně uloženo</span
+          >
+        </section>
+      </main>
+      <footer class="site-footer">
+        <button class="text-button" id="footerHelp">Průvodce přípravou</button
+        ><span id="offlineStatus"></span>
+      </footer>
     </div>
 
-    <aside class="tip" id="tTip"><svg class="i"><use href="#i-leaf"/></svg><p id="tTipText"></p></aside>
-  </section>
-
-  <!-- ===== DENÍK ===== -->
-  <section class="screen" id="viewJournal" aria-label="Deník">
-    <div class="topbar">
-      <button class="icon-btn" id="btnJBack" aria-label="Zpět"><svg class="i"><use href="#i-back"/></svg></button>
-      <div class="topbar-title">
+    <dialog
+      id="customDialog"
+      aria-labelledby="customDialogTitle"
+      class="dialog"
+    >
+      <div class="dialog-head">
         <div>
-          <div class="t-name">Deník</div>
-          <div class="t-desc">Tvoje uložená sezení</div>
+          <h2 id="customDialogTitle">Vlastní čaj</h2>
         </div>
+        <button class="icon-button close-dialog" aria-label="Zavřít"></button>
       </div>
-    </div>
-    <div class="j-stats" id="jStats"></div>
-    <div class="j-list" id="jList"></div>
-  </section>
-</div>
+      <p class="dialog-intro">Nastavte časy, teplotu vody a množství lístků.</p>
+      <form id="customForm">
+        <input type="hidden" id="customId" /><label class="form-field"
+          >Název čaje<input
+            id="customName"
+            name="name"
+            type="text"
+            required
+            maxlength="60"
+            placeholder="Název čaje"
+            autocomplete="off"
+        /></label>
+        <div class="form-row">
+          <label class="form-field"
+            >Teplota od (°C)<input
+              id="customTemp"
+              type="number"
+              required
+              value="95"
+              min="40"
+              max="100"
+              step="1" /></label
+          ><label class="form-field"
+            >Lístky na 100 ml (g)<input
+              id="customRatio"
+              type="number"
+              required
+              value="5"
+              min="0.5"
+              max="30"
+              step="0.5"
+          /></label>
+        </div>
+        <div class="form-row">
+          <label class="form-field"
+            >Teplota do (°C)<input
+              id="customTempMax"
+              type="number"
+              min="40"
+              max="100"
+              value="95"
+              required /></label
+          ><label class="form-field"
+            >Barva<input id="customColor" type="color" value="#78845f"
+          /></label>
+        </div>
+        <label class="form-field"
+          >Popis<input id="customDesc" maxlength="500"
+        /></label>
+        <label class="settings-option"
+          ><input id="customRinse" type="checkbox" /> Oplach před prvním
+          nálevem</label
+        >
+        <label class="form-field"
+          >Časy nálevů<select id="customMode">
+            <option value="formula">První čas a prodloužení</option>
+            <option value="list">Jednotlivé časy</option>
+          </select></label
+        >
+        <label class="form-field" id="listField" hidden
+          >Časy v sekundách, oddělené čárkou<input
+            id="customList"
+            placeholder="20, 15, 20, 30, 45"
+        /></label>
+        <div id="formulaFields">
+          <div class="form-row">
+            <label class="form-field"
+              >První nálev (s)<input
+                id="customFirst"
+                type="number"
+                required
+                value="20"
+                min="1"
+                max="3600"
+                step="1" /></label
+            ><label class="form-field"
+              >Prodloužení dalšího (s)<input
+                id="customIncrement"
+                type="number"
+                required
+                value="5"
+                min="0"
+                max="600"
+                step="1"
+            /></label>
+          </div>
+          <label class="form-field"
+            >Počet nálevů<input
+              id="customCount"
+              type="number"
+              required
+              value="8"
+              min="1"
+              max="49"
+              step="1"
+          /></label>
+        </div>
+        <p class="recipe-preview" id="recipePreview"></p>
+        <p class="form-error" id="customError" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" id="deleteRecipe" class="danger-button" hidden>
+            Smazat recept</button
+          ><button type="button" class="secondary-button close-dialog">
+            Zrušit</button
+          ><button type="submit" class="primary-button">Uložit čaj</button>
+        </div>
+      </form>
+    </dialog>
 
-<div class="sr-only" aria-live="assertive" id="live"></div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-<!-- ===== NASTAVENÍ ===== -->
-<dialog class="sheet" id="dlgSettings" aria-labelledby="setTitle">
-  <div class="panel">
-    <div class="sheet-head">
-      <h2 id="setTitle">Nastavení</h2>
-      <button class="icon-btn" data-close autofocus aria-label="Zavřít"><svg class="i"><use href="#i-x"/></svg></button>
-    </div>
-
-    <div class="group">
-      <div class="group-label">Nádoba</div>
-      <div class="stepper">
-        <button class="round" data-vstep="-10" aria-label="Ubrat 10 ml"><svg class="i"><use href="#i-minus"/></svg></button>
-        <div class="val" aria-live="polite"><span id="setVessel">100</span><small>ml</small></div>
-        <button class="round" data-vstep="10" aria-label="Přidat 10 ml"><svg class="i"><use href="#i-plus"/></svg></button>
-      </div>
-      <div class="chips fit" id="vesselChips"></div>
-      <p class="hint">Objem gaiwanu nebo konvičky. Podle něj se přepočítá, kolik gramů lístků nasypat.</p>
-    </div>
-
-    <div class="group">
-      <div class="group-label">Zvuk a upozornění</div>
-      <label class="switch-row"><span><b>Zvuk</b><small>Gong na konci louhování</small></span><input type="checkbox" class="switch" data-set="sound"></label>
-      <label class="switch-row"><span><b>Tikání</b><small>Poslední 3 sekundy</small></span><input type="checkbox" class="switch" data-set="ticks"></label>
-      <label class="switch-row" id="rowVibrate"><span><b>Vibrace</b><small>Zavibruje na konci louhování</small></span><input type="checkbox" class="switch" data-set="vibrate"></label>
-      <label class="switch-row" id="rowNotify"><span><b>Oznámení</b><small>Upozorní, i když je aplikace na pozadí</small></span><input type="checkbox" class="switch" data-set="notify"></label>
-      <button class="btn sm" id="btnTestSound" style="margin-top:8px"><svg class="i"><use href="#i-vol"/></svg>Přehrát gong</button>
-    </div>
-
-    <div class="group">
-      <div class="group-label">Průběh sezení</div>
-      <label class="switch-row"><span><b>Automaticky další</b><small>Po gongu připraví další louhování</small></span><input type="checkbox" class="switch" data-set="autoNext"></label>
-      <label class="switch-row"><span><b>Oplach</b><small>Krátký oplach lístků u čajů, kterým prospívá (pǔ’ěr, oolongy)</small></span><input type="checkbox" class="switch" data-set="rinse"></label>
-    </div>
-
-    <div class="group">
-      <div class="group-label">Vzhled</div>
-      <div class="seg" role="radiogroup" aria-label="Motiv">
-        <label><input type="radio" name="theme" value="auto"><span>Podle systému</span></label>
-        <label><input type="radio" name="theme" value="dark"><span>Tmavý</span></label>
-        <label><input type="radio" name="theme" value="light"><span>Světlý</span></label>
-      </div>
-    </div>
-
-    <div class="group" id="installGroup">
-      <div class="install">
-        <img src="icons/icon-192.png" alt="">
+    <dialog
+      id="journalDialog"
+      aria-labelledby="journalTitle"
+      class="dialog journal-dialog"
+    >
+      <div class="dialog-head">
         <div>
-          <b>Přidej si timer na plochu</b>
-          <p id="installText">Na iPhonu klepni na <b>Sdílet</b> → <b>Přidat na plochu</b>. Timer pak poběží na celou obrazovku a i bez internetu.</p>
-          <button class="btn sm primary" id="btnInstall" hidden>Nainstalovat</button>
+          <h2 id="journalTitle">Čajový deník</h2>
         </div>
+        <button class="icon-button close-dialog" aria-label="Zavřít"></button>
       </div>
-    </div>
+      <p class="dialog-intro">Přípravy uložené v tomto prohlížeči.</p>
+      <div id="journalEntries"></div>
+    </dialog>
 
-    <p class="fine">Vše se ukládá jen v tomto zařízení.</p>
-    <p class="fine kbd-hint"><kbd>mezerník</kbd> start/pauza · <kbd>←</kbd><kbd>→</kbd> louhování · <kbd>R</kbd> znovu · <kbd>+</kbd><kbd>−</kbd> 5 s</p>
-  </div>
-</dialog>
-
-<!-- ===== EDITOR ČAJE ===== -->
-<dialog class="sheet" id="dlgEditor" aria-labelledby="edTitle">
-  <div class="panel">
-    <div class="sheet-head">
-      <h2 id="edTitle">Nový čaj</h2>
-      <button class="icon-btn" data-close autofocus aria-label="Zavřít"><svg class="i"><use href="#i-x"/></svg></button>
-    </div>
-    <label class="field"><span>Název</span><input type="text" id="edName" maxlength="40" placeholder="Můj čaj…" autocomplete="off"></label>
-    <label class="field"><span>Poznámka</span><input type="text" id="edDesc" maxlength="60" placeholder="Např. Lóng Jǐng 2026, jaro" autocomplete="off"></label>
-    <div class="field"><span class="field-label">Barva nálevu</span><div class="swatches" id="edSwatches" role="radiogroup" aria-label="Barva nálevu"></div></div>
-    <div class="row2">
-      <div class="field"><span class="field-label">Voda °C</span>
-        <div class="range-in"><input type="number" id="edTmin" inputmode="numeric" min="40" max="100" aria-label="Teplota od"> – <input type="number" id="edTmax" inputmode="numeric" min="40" max="100" aria-label="Teplota do" placeholder="—"></div>
+    <dialog id="settingsDialog" aria-labelledby="settingsTitle" class="dialog">
+      <div class="dialog-head">
+        <h2 id="settingsTitle">Nastavení</h2>
+        <button class="icon-button close-dialog" aria-label="Zavřít"></button>
       </div>
-      <label class="field"><span>Gramů na 100 <span class="unit">ml</span></span><input type="number" id="edRatio" inputmode="decimal" step="0.5" min="0.5" max="30"></label>
-    </div>
-    <label class="switch-row" style="padding-top:0"><span><b>Oplach</b><small>Před 1. louhováním krátce spláchnout lístky</small></span><input type="checkbox" class="switch" id="edRinse"></label>
-    <div class="field" style="margin-top:8px"><span class="field-label">Louhování</span>
-      <div class="seg" role="radiogroup" aria-label="Způsob zadání časů">
-        <label><input type="radio" name="edMode" value="formula"><span>Vzorec</span></label>
-        <label><input type="radio" name="edMode" value="list"><span>Vlastní časy</span></label>
+      <div class="settings-options">
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="sound" />Zvuk dokončení</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="ticks" />Zvuk posledních tří
+          sekund</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="vibrate" />Vibrace</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="wake" />Nechat displej
+          zapnutý</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="notify" />Oznámení</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="rinse" />Oplach u doporučených
+          čajů</label
+        >
+        <label class="settings-option"
+          ><input type="checkbox" data-setting="autoNext" />Po dokončení
+          připravit další nálev</label
+        >
       </div>
-    </div>
-    <div class="row3" id="edFormula">
-      <label class="field"><span>1. (s)</span><input type="number" id="edFirst" inputmode="numeric" min="1" max="600"></label>
-      <label class="field"><span>Přírůstek</span><input type="number" id="edInc" inputmode="numeric" min="0" max="300"></label>
-      <label class="field"><span>Počet</span><input type="number" id="edCount" inputmode="numeric" min="1" max="30"></label>
-    </div>
-    <label class="field" id="edListWrap" hidden><span>Časy v sekundách</span><textarea id="edList" rows="2" placeholder="20, 15, 20, 25, 30, 40…"></textarea></label>
-    <div class="preview" id="edPreview" aria-live="polite"></div>
-    <p class="err" id="edErr" hidden></p>
-    <div class="sheet-actions">
-      <button class="btn ghost danger" id="edDelete" hidden>Smazat</button>
-      <button class="btn" id="edSave">Uložit</button>
-      <button class="btn primary" id="edSaveRun">Uložit a spustit</button>
-    </div>
-  </div>
-</dialog>
-
-<!-- ===== SHRNUTÍ SEZENÍ ===== -->
-<dialog class="sheet" id="dlgSummary" aria-labelledby="sTitle">
-  <div class="panel">
-    <div class="sum-head">
-      <span id="sSeal"></span>
-      <div>
-        <h2 id="sTitle">Sezení dokončeno</h2>
-        <div class="t-desc" id="sTea"></div>
+      <p class="dialog-intro">
+        Další nálev se sám nespustí. Oplach platí pro novou přípravu. Oznámení
+        závisí na podpoře prohlížeče; na iPhonu aplikaci přidejte na plochu.
+      </p>
+      <label class="form-field"
+        >Vzhled<select id="settingTheme">
+          <option value="auto">Podle systému</option>
+          <option value="light">Světlý</option>
+          <option value="dark">Tmavý</option>
+        </select></label
+      ><button class="primary-button close-dialog full-width">Zavřít</button>
+    </dialog>
+    <dialog
+      id="helpDialog"
+      aria-labelledby="helpTitle"
+      class="dialog help-dialog"
+    >
+      <div class="dialog-head">
+        <div>
+          <h2 id="helpTitle">Příprava gongfu</h2>
+        </div>
+        <button class="icon-button close-dialog" aria-label="Zavřít"></button>
       </div>
-      <button class="icon-btn" data-close autofocus aria-label="Zavřít"><svg class="i"><use href="#i-x"/></svg></button>
-    </div>
-    <div class="sum-stats">
-      <div class="param"><div class="val" id="sCount"></div><div class="lbl">Louhování</div></div>
-      <div class="param"><div class="val" id="sSteep"></div><div class="lbl">Louhováno</div></div>
-      <div class="param"><div class="val" id="sDur"></div><div class="lbl">Sezení</div></div>
-    </div>
-    <div class="field"><span class="field-label">Hodnocení</span><div class="rating" id="sRating" role="radiogroup" aria-label="Hodnocení"></div></div>
-    <label class="field"><span>Poznámka</span><textarea id="sNote" rows="3" placeholder="Vůně, tělo, dochuť… Které louhování bylo nejlepší?"></textarea></label>
-    <div class="sheet-actions col">
-      <button class="btn primary" id="sSave">Uložit do deníku</button>
-      <button class="btn" id="sMore"><svg class="i"><use href="#i-plus"/></svg>Ještě jedno louhování</button>
-      <button class="btn ghost" id="sDiscard">Ukončit bez uložení</button>
-    </div>
-  </div>
-</dialog>
-
-<!-- ===== POTVRZENÍ ===== -->
-<dialog class="sheet" id="dlgConfirm" aria-labelledby="cfMsg">
-  <div class="panel small">
-    <p id="cfMsg" style="font-size:.95rem;line-height:1.5;margin:10px 0 4px"></p>
-    <div class="sheet-actions">
-      <button class="btn" id="cfCancel">Zpět</button>
-      <button class="btn primary" id="cfOk">Ano</button>
-    </div>
-  </div>
-</dialog>
-
-<script>
-'use strict';
-
-// ============================================================
-//  DATA
-// ============================================================
-const PRESETS = [
-  { id: 'green', name: 'Zelený čaj', hanzi: '绿', color: '#7a9e7e', temp: [75, 80], ratio: 4, rinse: false,
-    infusions: [30, 40, 50, 60, 70, 80, 90, 100], desc: 'Lóng Jǐng, Bì Luó Chūn…',
-    tip: 'Nižší teplota chrání sladkost. Lístky nepřikrývej víčkem, ať se „neuvaří“.' },
-  { id: 'white', name: 'Bílý čaj', hanzi: '白', color: '#d4c8b0', temp: [85, 90], ratio: 4.5, rinse: false,
-    infusions: [20, 15, 20, 25, 30, 40, 50, 70, 90], desc: 'Bái Háo Yín Zhēn, Bái Mǔ Dān…',
-    tip: 'Vodu nalévej po stěně nádoby, ne přímo na jemné pupeny.' },
-  { id: 'yellow', name: 'Žlutý čaj', hanzi: '黄', color: '#c4b46a', temp: [80, 85], ratio: 4, rinse: false,
-    infusions: [15, 15, 20, 25, 35, 50, 70], desc: 'Jūn Shān Yín Zhēn…',
-    tip: 'Jemný jako zelený, ale kulatější a sladší. Vroucí vodě se vyhni.' },
-  { id: 'oolong_light', name: 'Oolong světlý', hanzi: '清', color: '#8ab88e', temp: [90, 95], ratio: 5, rinse: true,
-    infusions: [20, 15, 20, 25, 30, 35, 45, 60, 80, 100], desc: 'Tiě Guān Yīn, Ālǐ Shān…',
-    tip: 'Stočené kuličky se rozvinou až po 2.–3. louhování. Pak čas pomalu prodlužuj.' },
-  { id: 'oolong_dark', name: 'Oolong tmavý', hanzi: '岩', color: '#b8864e', temp: [95, 100], ratio: 6, rinse: true,
-    infusions: [10, 10, 15, 15, 20, 25, 30, 40, 60, 80], desc: 'Dà Hóng Páo, Ròu Guì…',
-    tip: 'Vroucí voda a rychlé nálevy. Nádobí předehřej, ať drží teplotu.' },
-  { id: 'red', name: 'Červený (černý)', hanzi: '红', color: '#c47a6a', temp: [90, 95], ratio: 5, rinse: false,
-    infusions: [10, 10, 15, 15, 20, 30, 40, 60], desc: 'Diān Hóng, Jīn Jùn Méi…',
-    tip: 'Krátké nálevy drží sladkost. Příliš dlouhé louhování přináší hořkost.' },
-  { id: 'sheng', name: 'Shēng Pǔ’ěr', hanzi: '生', color: '#6b8c5a', temp: [95, 100], ratio: 6, rinse: true,
-    infusions: [10, 8, 10, 12, 15, 20, 25, 35, 50, 70, 90, 120], desc: 'Mladý i zralý shēng…',
-    tip: 'Mladý shēng umí být trpký — začni krátce a přidávej postupně.' },
-  { id: 'shou', name: 'Shóu Pǔ’ěr', hanzi: '熟', color: '#7a5a3a', temp: [100, 100], ratio: 6, rinse: true,
-    infusions: [10, 10, 10, 15, 15, 20, 25, 35, 50, 70, 90], desc: 'Zralý fermentovaný pǔ’ěr…',
-    tip: 'Oplach (klidně dva) spláchne prach z lisování a probudí lístky.' },
-  { id: 'dancong', name: 'Dān Cóng', hanzi: '凤', color: '#c49a5a', temp: [95, 100], ratio: 7, rinse: true,
-    infusions: [5, 5, 8, 10, 15, 20, 25, 35, 50, 70], desc: 'Fènghuáng Dān Cóng…',
-    tip: 'Velmi aromatický a snadno zhořkne. Slévej rychle a do poslední kapky.' }
-];
-const SWATCHES = ['#7a9e7e', '#8ab88e', '#d4c8b0', '#c4b46a', '#c49a5a', '#b8864e', '#c47a6a', '#6b8c5a', '#7a5a3a', '#9a8b7a'];
-const CUSTOM_TIP = 'Čas přizpůsob chuti: tlačítky −5 s / +5 s upravíš právě probíhající louhování.';
-const RINSE_SEC = 5;
-const AUTO_NEXT_MS = 3500;
-const DEFAULTS = { sound: true, ticks: true, vibrate: true, notify: false, autoNext: true, rinse: true, vessel: 100, theme: 'auto' };
-
-// ============================================================
-//  ÚLOŽIŠTĚ
-// ============================================================
-const store = {
-  get(k, d) { try { const v = localStorage.getItem('gft.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem('gft.' + k, JSON.stringify(v)); } catch (e) {} },
-  del(k) { try { localStorage.removeItem('gft.' + k); } catch (e) {} }
-};
-
-let settings = Object.assign({}, DEFAULTS, store.get('settings', {}));
-let customTeas = store.get('custom', []);
-let overrides = store.get('overrides', {});
-let journal = store.get('journal', []);
-let S = store.get('session', null);   // rozpracované sezení
-let view = 'select';
-
-const saveSettings = () => store.set('settings', settings);
-function saveSession() {
-  if (S) { S.updatedAt = Date.now(); store.set('session', S); }
-  else store.del('session');
-}
-
-// ============================================================
-//  POMOCNÍCI
-// ============================================================
-const $ = (s, r = document) => r.querySelector(s);
-const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const decimal = (n) => String(n).replace('.', ',');
-const icon = (id) => `<svg class="i"><use href="#i-${id}"/></svg>`;
-
-function fmtClock(sec) {
-  sec = Math.max(0, Math.round(sec));
-  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
-}
-const fmtShort = (sec) => (sec < 60 ? `${sec}s` : fmtClock(sec));
-function fmtDur(ms) {
-  if (ms < 60000) return `${Math.max(0, Math.round(ms / 1000))} s`;
-  const m = Math.round(ms / 60000);
-  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;
-}
-function descOf(t) {
-  if (t.desc) return t.desc;
-  if (!t.custom) return '';
-  const n = t.infusions.length;
-  if (t.mode === 'formula') return `${t.infusions[0]} s + ${t.inc || 0} s / louhování`;
-  return `${n} ${n === 1 ? 'vlastní čas' : n < 5 ? 'vlastní časy' : 'vlastních časů'}`;
-}
-const tempText = (t) => (t.temp[0] === t.temp[1] ? `${t.temp[0]} °C` : `${t.temp[0]}–${t.temp[1]} °C`);
-const gramsFor = (t) => decimal(Math.round((t.ratio * settings.vessel) / 100 * 2) / 2) + ' g';
-
-function sealHTML(t, cls = '') {
-  const han = /[㐀-鿿]/.test(t.hanzi || '');
-  const ch = t.hanzi || (t.name || '?').trim().charAt(0).toUpperCase() || '?';
-  return `<span class="seal ${cls} ${han ? '' : 'lat'}" style="--tea:${t.color}" aria-hidden="true">${esc(ch)}</span>`;
-}
-
-function teaById(id) {
-  const p = PRESETS.find((x) => x.id === id);
-  if (p) return Object.assign({}, p, overrides[id] || {}, { edited: !!overrides[id] });
-  return customTeas.find((x) => x.id === id) || null;
-}
-
-let toastTimer = 0;
-function toast(msg) {
-  const el = $('#toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
-}
-function announce(msg) { const el = $('#live'); el.textContent = ''; setTimeout(() => { el.textContent = msg; }, 50); }
-
-// ============================================================
-//  ZVUK
-//  HTML <audio> prvky odemčené gestem hrají přes mediální kanál,
-//  takže je slyšet i s tichým režimem na iPhonu. Tichá smyčka drží
-//  audio relaci aktivní, dokud je otevřený časovač.
-// ============================================================
-function makeAudio(src, loop) {
-  const a = new Audio();
-  a.preload = 'auto';
-  a.loop = !!loop;
-  a.dataset.url = src;
-  // Blob URL obejde potíže Safari s Range požadavky přes service worker (offline).
-  fetch(src).then((r) => (r.ok ? r.blob() : Promise.reject()))
-    .then((b) => { if (!a.src) a.src = URL.createObjectURL(b); })
-    .catch(() => { if (!a.src) a.src = src; });
-  return a;
-}
-const snd = {
-  chime: makeAudio('sounds/chime.wav'),
-  tick: makeAudio('sounds/tick.wav'),
-  silence: makeAudio('sounds/silence.wav', true)
-};
-snd.tick.volume = 0.8;
-snd.silence.volume = 0.01;
-let audioUnlocked = false;
-
-function primeAudio(a) {
-  if (!a.src) a.src = a.dataset.url;
-  a.muted = true;
-  a._priming = true;
-  const end = () => { if (a._priming) { a.pause(); try { a.currentTime = 0; } catch (e) {} } a._priming = false; a.muted = false; };
-  const p = a.play();
-  if (p && p.then) p.then(end, end); else end();
-}
-function playSound(a) {
-  if (!a.src) a.src = a.dataset.url;
-  a._priming = false;
-  a.muted = false;
-  try { a.currentTime = 0; } catch (e) {}
-  const p = a.play();
-  if (p && p.catch) p.catch(() => {});
-}
-function unlockAudio() {
-  if (!audioUnlocked) {
-    audioUnlocked = true;
-    primeAudio(snd.chime);
-    primeAudio(snd.tick);
-  }
-  syncSilence();
-}
-// Tichá smyčka běží jen během louhování, ať zbytečně nepřebírá audio (hudbu, podcast).
-function syncSilence() {
-  const want = audioUnlocked && settings.sound && !!S && S.phase === 'running';
-  const a = snd.silence;
-  if (want && a.paused) {
-    if (!a.src) a.src = a.dataset.url;
-    const p = a.play(); if (p && p.catch) p.catch(() => {});
-  } else if (!want && !a.paused) a.pause();
-}
-['click', 'keydown'].forEach((t) => document.addEventListener(t, unlockAudio, { capture: true }));
-const playChime = () => { if (settings.sound) playSound(snd.chime); };
-const playTick = () => { if (settings.sound && settings.ticks) playSound(snd.tick); };
-
-// ============================================================
-//  DRŽENÍ DISPLEJE
-// ============================================================
-const wake = {
-  lock: null,
-  busy: false,
-  again: false,
-  async update() {
-    if (!('wakeLock' in navigator)) return;
-    if (this.busy) { this.again = true; return; }
-    const want = !!S && !document.hidden && (view === 'timer' || S.phase === 'running');
-    this.busy = true;
-    try {
-      if (want && !this.lock) {
-        this.lock = await navigator.wakeLock.request('screen');
-        this.lock.addEventListener('release', () => { this.lock = null; });
-      } else if (!want && this.lock) {
-        await this.lock.release();
-        this.lock = null;
-      }
-    } catch (e) {}
-    this.busy = false;
-    if (this.again) { this.again = false; this.update(); }
-  }
-};
-
-// ============================================================
-//  SEZENÍ A ČASOVAČ
-// ============================================================
-const tm = { iv: 0, to: 0, raf: 0, auto: 0, sum: 0, lastSec: -1, lastClock: '' };
-const CIRC = 2 * Math.PI * 142;
-
-const stepCount = () => S.steps.filter((s) => !s.rinse).length;
-const stepNo = (i) => i + 1 - (S.steps[0] && S.steps[0].rinse ? 1 : 0);
-const doneCount = () => S.steps.reduce((n, s, i) => n + (S.done[i] && !s.rinse ? 1 : 0), 0);
-const isLast = () => S.idx >= S.steps.length - 1;
-const hasProgress = () => !!S && (S.startedAt > 0 || S.done.some(Boolean));
-function remainingNow() {
-  if (!S) return 0;
-  if (S.phase === 'running') return Math.max(0, S.endAt - Date.now());
-  return S.remaining;
-}
-
-function snapshot(t) {
-  return { id: t.id, name: t.name, hanzi: t.hanzi || '', color: t.color, temp: t.temp.slice(), ratio: t.ratio,
-           desc: descOf(t), tip: t.tip || '', rinse: !!t.rinse };
-}
-function buildSteps(t) {
-  const steps = t.infusions.map((sec) => ({ sec }));
-  if (settings.rinse && t.rinse) steps.unshift({ sec: RINSE_SEC, rinse: true });
-  return steps;
-}
-
-function startSession(t) {
-  clearTimers();
-  const steps = buildSteps(t);
-  S = {
-    tea: snapshot(t), steps, idx: 0, done: steps.map(() => false), phase: 'idle',
-    total: steps[0].sec * 1000, remaining: steps[0].sec * 1000, endAt: 0,
-    startedAt: 0, lastAt: 0, steepMs: 0, updatedAt: Date.now()
-  };
-  saveSession();
-  resetSummaryDraft();
-}
-
-function clearTimers() {
-  clearInterval(tm.iv); clearTimeout(tm.to); cancelAnimationFrame(tm.raf);
-  clearTimeout(tm.auto); clearTimeout(tm.sum);
-  tm.iv = tm.to = tm.raf = tm.auto = tm.sum = 0;
-}
-
-function setIdx(i) {
-  if (!S) return;
-  clearTimers();
-  S.idx = clamp(i, 0, S.steps.length - 1);
-  S.phase = 'idle';
-  S.total = S.remaining = S.steps[S.idx].sec * 1000;
-  saveSession();
-  renderTimer();
-  if (view === 'select') renderResume();
-}
-
-function start() {
-  if (!S || S.phase === 'running') return;
-  unlockAudio();
-  if (S.phase === 'done') {
-    if (isLast()) { openSummary(); return; }
-    setIdx(S.idx + 1);
-  }
-  clearTimeout(tm.auto); clearTimeout(tm.sum);
-  if (S.remaining <= 0) S.remaining = S.total;
-  S.phase = 'running';
-  S.endAt = Date.now() + S.remaining;
-  if (!S.startedAt) S.startedAt = Date.now();
-  saveSession();
-  runLoops();
-  renderTimer();
-  syncSilence();
-  wake.update();
-}
-
-function runLoops() {
-  clearInterval(tm.iv); clearTimeout(tm.to); cancelAnimationFrame(tm.raf);
-  tm.lastSec = Math.ceil((S.endAt - Date.now()) / 1000);
-  tm.iv = setInterval(onTick, 200);
-  tm.to = setTimeout(onTick, Math.max(0, S.endAt - Date.now()) + 20);
-  tm.raf = requestAnimationFrame(frame);
-}
-
-function pause() {
-  if (!S || S.phase !== 'running') return;
-  if (S.endAt <= Date.now()) { finish(); return; }
-  clearTimers();
-  S.remaining = S.endAt - Date.now();
-  S.phase = 'paused';
-  saveSession();
-  renderTimer();
-  syncSilence();
-}
-const toggle = () => (S && S.phase === 'running' ? pause() : start());
-
-function onTick() {
-  if (!S || S.phase !== 'running') return;
-  const rem = S.endAt - Date.now();
-  if (rem <= 0) { finish(); return; }
-  const sec = Math.ceil(rem / 1000);
-  if (sec !== tm.lastSec) {
-    tm.lastSec = sec;
-    if (sec <= 3) playTick();
-    renderClock(rem);
-    if (view === 'select') renderResume();
-  }
-}
-
-function frame() {
-  if (!S || S.phase !== 'running') return;
-  const rem = Math.max(0, S.endAt - Date.now());
-  renderRing(S.total ? rem / S.total : 0);
-  renderClock(rem);
-  tm.raf = requestAnimationFrame(frame);
-}
-
-function finish(silent) {
-  if (!S || S.phase !== 'running') return;
-  clearTimers();
-  const i = S.idx;
-  S.phase = 'done';
-  S.remaining = 0;
-  S.done[i] = true;
-  S.steepMs += S.total;
-  S.lastAt = S.endAt;
-  saveSession();
-  renderTimer();
-  if (view === 'select') renderResume();
-  if (!silent) alertDone();
-  if (i >= S.steps.length - 1) {
-    if (!silent) tm.sum = setTimeout(() => { if (S && S.phase === 'done' && view === 'timer') openSummary(); }, 1800);
-  } else if (settings.autoNext) {
-    tm.auto = setTimeout(() => { if (S && S.phase === 'done' && S.idx === i) setIdx(i + 1); }, AUTO_NEXT_MS);
-  }
-  syncSilence();
-}
-
-function alertDone() {
-  const st = S.steps[S.idx];
-  const what = st.rinse ? 'Oplach hotový' : `Louhování ${stepNo(S.idx)} hotové`;
-  playChime();
-  if (settings.vibrate && navigator.vibrate) navigator.vibrate([220, 120, 220]);
-  announce(`${what}. Slij čaj.`);
-  if (document.hidden) notify(`${what} · ${S.tea.name}`, 'Slij čaj.');
-}
-
-async function notify(title, body) {
-  if (!settings.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
-  const opts = { body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: 'gongfu', renotify: true };
-  try {
-    const reg = navigator.serviceWorker && (await navigator.serviceWorker.getRegistration());
-    if (reg) await reg.showNotification(title, opts);
-    else new Notification(title, opts);
-  } catch (e) {}
-}
-
-// Když se čaj slije dřív: rozlouhovanou část aktuálního kroku započítá jako hotovou.
-function settleCurrent() {
-  if (!S || (S.phase !== 'running' && S.phase !== 'paused')) return;
-  const elapsed = S.total - remainingNow();
-  clearTimers();
-  if (elapsed >= 1000) {
-    S.done[S.idx] = true;
-    S.steepMs += elapsed;
-    S.lastAt = Date.now();
-    S.phase = 'done';
-    S.remaining = 0;
-  } else {
-    S.phase = 'idle';
-    S.remaining = S.total;
-  }
-  saveSession();
-  syncSilence();
-}
-function next() {
-  if (!S) return;
-  settleCurrent();
-  if (isLast()) { renderTimer(); openSummary(); return; }
-  setIdx(S.idx + 1);
-}
-function prev() {
-  if (!S || S.idx === 0 || S.phase === 'running') return;
-  settleCurrent();
-  setIdx(S.idx - 1);
-}
-function reset() { if (S) setIdx(S.idx); }
-
-function adjust(delta) {
-  if (!S || S.phase === 'done') return;
-  const st = S.steps[S.idx];
-  const sec = clamp(st.sec + delta, 1, 3600);
-  const d = (sec - st.sec) * 1000;
-  if (!d) return;
-  st.sec = sec;
-  if (S.phase === 'running') {
-    S.endAt += d;
-    S.total = Math.max(1000, S.total + d);
-    runLoops();
-    onTick();
-  } else if (S.phase === 'paused') {
-    S.total = Math.max(1000, S.total + d);
-    S.remaining = clamp(S.remaining + d, 500, S.total);
-  } else {
-    S.total = S.remaining = sec * 1000;
-  }
-  saveSession();
-  renderTimer();
-}
-
-function addStep() {
-  settleCurrent();
-  const infs = S.steps.filter((s) => !s.rinse);
-  const last = infs.length ? infs[infs.length - 1].sec : 20;
-  const sec = Math.max(last + 10, Math.round((last * 1.3) / 5) * 5);
-  S.steps.push({ sec });
-  S.done.push(false);
-  setIdx(S.steps.length - 1);
-  renderTimerStatic();
-}
-
-function endSession() {
-  clearTimers();
-  S = null;
-  resetSummaryDraft();
-  saveSession();
-  syncSilence();
-  wake.update();
-  document.title = 'Gōng Fū Tea Timer';
-  if (view === 'timer') goBack(); else renderSelect();
-}
-
-// ============================================================
-//  VYKRESLENÍ — ČASOVAČ
-// ============================================================
-function renderTimerStatic() {
-  if (!S) return;
-  const t = S.tea;
-  const vt = $('#viewTimer');
-  vt.style.setProperty('--tea', t.color);
-  $('#tSeal').innerHTML = sealHTML(t, 'sm');
-  $('#tName').textContent = t.name;
-  $('#tDesc').textContent = t.desc || '';
-  $('#pTemp').textContent = tempText(t);
-  $('#pLeaf').textContent = gramsFor(t);
-  $('#pLeafLbl').innerHTML = `na ${settings.vessel} <span class="unit">ml</span>`;
-  $('#pCount').textContent = stepCount() + '×';
-  $('#tTipText').textContent = t.tip || CUSTOM_TIP;
-  renderSoundBtn();
-}
-
-function renderPills() {
-  const box = $('#pills');
-  const sig = S.tea.id + ':' + S.steps.map((st) => (st.rinse ? 'r' : 'i')).join('');
-  if (box.dataset.sig !== sig) {
-    box.dataset.sig = sig;
-    box.dataset.idx = '';
-    box.innerHTML = S.steps.map((st, i) =>
-      `<button class="pill" data-i="${i}"><span class="n">${st.rinse ? icon('drop') : stepNo(i)}</span><span class="s"></span></button>`).join('');
-  }
-  S.steps.forEach((st, i) => {
-    const b = box.children[i];
-    b.classList.toggle('done', !!S.done[i]);
-    b.classList.toggle('active', i === S.idx);
-    b.lastElementChild.textContent = fmtShort(st.sec);
-    b.setAttribute('aria-label', `${st.rinse ? 'Oplach' : 'Louhování ' + stepNo(i)}, ${st.sec} s${S.done[i] ? ', hotovo' : ''}`);
-    if (i === S.idx) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
-  });
-  if (box.dataset.idx !== String(S.idx)) {
-    box.dataset.idx = S.idx;
-    const act = box.children[S.idx];
-    const left = act.offsetLeft - box.clientWidth / 2 + act.offsetWidth / 2;
-    box.scrollTo({ left, behavior: 'smooth' });
-  }
-}
-
-// fraction = kolik prstence zbývá (1 = plný), steep = jak moc je čaj vylouhovaný (barva nálevu)
-function renderRing(fraction, steep) {
-  const f = clamp(fraction, 0, 1);
-  $('#ringProg').style.strokeDashoffset = CIRC * (1 - f);
-  $('#viewTimer').style.setProperty('--steep', clamp(steep == null ? 1 - f : steep, 0, 1).toFixed(3));
-}
-
-function renderClock(remMs) {
-  const txt = fmtClock(Math.ceil(remMs / 1000));
-  if (txt !== tm.lastClock) {
-    tm.lastClock = txt;
-    $('#tTime').textContent = txt;
-    if (S && S.phase === 'running') document.title = `${txt} · ${S.tea.name}`;
-  }
-}
-
-function stepLabel(i) {
-  const st = S.steps[i];
-  return st.rinse ? 'Oplach' : `Louhování ${stepNo(i)} / ${stepCount()}`;
-}
-
-function renderTimer() {
-  if (!S) return;
-  const vt = $('#viewTimer');
-  const ph = S.phase;
-  const st = S.steps[S.idx];
-  vt.dataset.phase = ph;
-
-  let label = stepLabel(S.idx);
-  if (ph === 'paused') label = 'Pozastaveno';
-  if (ph === 'done') label = st.rinse ? 'Oplach hotový · slij' : 'Hotovo · slij čaj';
-  $('#tLabel').textContent = label;
-
-  tm.lastClock = '';
-  renderClock(ph === 'done' ? 0 : remainingNow());
-  if (ph === 'done') renderRing(1, 1); else renderRing(remainingNow() / S.total);
-  renderPills();
-
-  const play = $('#btnPlay');
-  const running = ph === 'running';
-  play.querySelector('use').setAttribute('href', running ? '#i-pause' : '#i-play');
-  const playLabel = running ? 'Pozastavit' : ph === 'done' ? (isLast() ? 'Dokončit sezení' : 'Spustit další louhování') : ph === 'paused' ? 'Pokračovat' : 'Spustit';
-  play.setAttribute('aria-label', playLabel);
-
-  const nb = $('#btnNext');
-  nb.querySelector('use').setAttribute('href', isLast() ? '#i-check' : '#i-next');
-  nb.setAttribute('aria-label', isLast() ? 'Dokončit sezení' : 'Další louhování');
-
-  $('#btnReset').disabled = ph === 'idle';
-  $('#btnMinus').disabled = ph === 'done' || st.sec <= 1;
-  $('#btnPlus').disabled = ph === 'done';
-  $('#pCount').textContent = stepCount() + '×';
-
-  if (!running) document.title = ph === 'done' ? `✓ ${S.tea.name}` : 'Gōng Fū Tea Timer';
-  renderStats();
-  updateMedia();
-}
-
-function renderStats() {
-  const el = $('#tStats');
-  if (!S || !S.startedAt) { el.innerHTML = '&nbsp;'; return; }
-  const steep = S.steepMs + (S.phase === 'running' || S.phase === 'paused' ? S.total - remainingNow() : 0);
-  el.innerHTML = `Louhováno <b>${fmtClock(steep / 1000)}</b> · sezení <b>${fmtDur(Date.now() - S.startedAt)}</b>`;
-}
-
-function renderSoundBtn() {
-  const b = $('#btnSound');
-  b.querySelector('use').setAttribute('href', settings.sound ? '#i-vol' : '#i-mute');
-  b.setAttribute('aria-label', settings.sound ? 'Vypnout zvuk' : 'Zapnout zvuk');
-  b.setAttribute('aria-pressed', String(settings.sound));
-  b.classList.toggle('off', !settings.sound);
-}
-
-// Ovládání ze zamčené obrazovky / sluchátek (Media Session)
-function updateMedia() {
-  if (!('mediaSession' in navigator) || !S) return;
-  try {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: stepLabel(S.idx) + ' · ' + fmtClock(S.steps[S.idx].sec),
-      artist: S.tea.name,
-      album: 'Gōng Fū Chá',
-      artwork: [{ src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }]
-    });
-    navigator.mediaSession.playbackState = S.phase === 'running' ? 'playing' : 'paused';
-  } catch (e) {}
-}
-if ('mediaSession' in navigator) {
-  const h = { play: start, pause, nexttrack: next };
-  for (const k in h) { try { navigator.mediaSession.setActionHandler(k, h[k]); } catch (e) {} }
-}
-
-// ============================================================
-//  VYKRESLENÍ — VÝBĚR
-// ============================================================
-function cardHTML(t) {
-  const editable = !!t.custom;
-  return `<div class="tea-card" style="--tea:${t.color}">
-      <button class="card-hit" data-tea="${t.id}" aria-label="${esc(t.name)}, ${tempText(t)}, ${gramsFor(t)}, ${t.infusions.length} louhování"></button>
-      ${sealHTML(t)}
-      ${editable ? `<button class="card-edit" data-edit="${t.id}" aria-label="Upravit ${esc(t.name)}">${icon('pencil')}</button>` : ''}
-      <div class="name">${esc(t.name)}</div>
-      <div class="desc">${esc(descOf(t))}</div>
-      <div class="meta"><span>${tempText(t)}</span><span>${gramsFor(t)}</span><span>${t.infusions.length}×</span>${t.edited ? '<span class="badge">upraveno</span>' : ''}</div>
-    </div>`;
-}
-
-function renderSelect() {
-  $('#gridPresets').innerHTML = PRESETS.map((p) => cardHTML(teaById(p.id))).join('');
-  $('#gridCustom').innerHTML = customTeas.map(cardHTML).join('') +
-    `<button class="tea-card add" data-add><span class="plus">${icon('plus')}</span>Nový čaj</button>`;
-  $('#footVessel').textContent = settings.vessel + ' ml';
-  renderResume();
-}
-
-function renderResume() {
-  const el = $('#resume');
-  if (!S) { el.hidden = true; return; }
-  el.hidden = false;
-  el.style.setProperty('--tea', S.tea.color);
-  $('#rSeal').innerHTML = sealHTML(S.tea, 'sm');
-  $('#rTitle').textContent = S.tea.name;
-  const st = S.steps[S.idx];
-  const lbl = st.rinse ? 'Oplach' : `Louhování ${stepNo(S.idx)}/${stepCount()}`;
-  let sub = lbl;
-  if (S.phase === 'running') sub = `${lbl} · zbývá ${fmtClock(Math.ceil(remainingNow() / 1000))}`;
-  else if (S.phase === 'done') sub = `${lbl} · hotovo`;
-  else if (S.phase === 'paused') sub = `${lbl} · pozastaveno`;
-  $('#rSub').textContent = sub;
-}
-
-// ============================================================
-//  VYKRESLENÍ — DENÍK
-// ============================================================
-function dayLabel(ts) {
-  const d = new Date(ts), today = new Date();
-  const y = new Date(); y.setDate(today.getDate() - 1);
-  const same = (a, b) => a.toDateString() === b.toDateString();
-  if (same(d, today)) return 'Dnes';
-  if (same(d, y)) return 'Včera';
-  return d.toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
-}
-function leavesHTML(n) {
-  if (!n) return '';
-  let h = '<span class="leaves" aria-label="Hodnocení ' + n + ' z 5">';
-  for (let i = 1; i <= 5; i++) h += `<svg class="i ${i <= n ? 'on' : 'off'}"><use href="#i-leaf"/></svg>`;
-  return h + '</span>';
-}
-function renderJournal() {
-  const stats = $('#jStats'), list = $('#jList');
-  if (!journal.length) {
-    stats.innerHTML = '';
-    list.innerHTML = `<div class="empty"><div class="glyph">茶</div>Zatím tu nic není.<br>Po dokončení sezení si ho můžeš uložit do deníku — i s hodnocením a poznámkou.</div>`;
-    return;
-  }
-  const total = journal.reduce((n, e) => n + e.infusions, 0);
-  const freq = {};
-  journal.forEach((e) => { freq[e.tea.name] = (freq[e.tea.name] || 0) + 1; });
-  const fav = Object.keys(freq).sort((a, b) => freq[b] - freq[a])[0];
-  stats.innerHTML =
-    `<div class="param"><div class="val">${journal.length}</div><div class="lbl">Sezení</div></div>` +
-    `<div class="param"><div class="val">${total}</div><div class="lbl">Louhování</div></div>` +
-    `<div class="param"><div class="val" style="font-size:1rem;overflow:hidden;text-overflow:ellipsis">${esc(fav)}</div><div class="lbl">Nejčastěji</div></div>`;
-  let lastDay = '';
-  list.innerHTML = journal.map((e) => {
-    const day = dayLabel(e.date);
-    const head = day !== lastDay ? `<div class="j-day">${esc(day)}</div>` : '';
-    lastDay = day;
-    const time = new Date(e.date).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' });
-    return head + `<article class="j-item">
-        ${sealHTML(e.tea)}
-        <div><div class="j-name">${esc(e.tea.name)}${leavesHTML(e.rating)}</div>
-        <div class="j-meta">${time} · ${e.infusions} louhování · ${fmtDur(e.durationMs)}</div></div>
-        <button class="icon-btn" data-del="${e.id}" aria-label="Smazat záznam">${icon('trash')}</button>
-        ${e.note ? `<p class="j-note">${esc(e.note)}</p>` : ''}
-      </article>`;
-  }).join('');
-}
-
-// ============================================================
-//  NAVIGACE
-// ============================================================
-function showView(v) {
-  if (v === 'timer' && !S) v = 'select';
-  view = v;
-  const id = { select: 'viewSelect', timer: 'viewTimer', journal: 'viewJournal' }[v];
-  const prevFocus = document.activeElement;
-  $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
-  if (prevFocus && prevFocus.closest && prevFocus.closest('.screen') && !prevFocus.closest('.screen.active')) {
-    $({ select: '#btnJournal', timer: '#btnBack', journal: '#btnJBack' }[v]).focus({ preventScroll: true });
-  }
-  store.set('view', v);
-  window.scrollTo(0, 0);
-  if (v === 'select') { renderSelect(); if (!S || S.phase !== 'running') document.title = 'Gōng Fū Tea Timer'; }
-  if (v === 'journal') renderJournal();
-  if (v === 'timer') {
-    renderTimerStatic();
-    renderTimer();
-    if (S.phase === 'running') { cancelAnimationFrame(tm.raf); tm.raf = requestAnimationFrame(frame); }
-  }
-  syncSilence();
-  wake.update();
-}
-function go(v) {
-  if (view === 'select' && v !== 'select') history.pushState({ v }, '');
-  else history.replaceState(v === 'select' ? null : { v }, '');
-  showView(v);
-}
-function goBack() {
-  if (history.state && history.state.v) history.back();
-  else showView('select');
-}
-window.addEventListener('popstate', () => {
-  $$('dialog[open]').forEach((d) => d.close());
-  showView((history.state && history.state.v) || 'select');
-});
-
-async function openTea(id) {
-  unlockAudio();
-  const t = teaById(id);
-  if (!t) return;
-  if (S && S.tea.id === id) { go('timer'); return; }
-  if (S && hasProgress()) {
-    const ok = await confirmBox(`Rozpracované sezení (${S.tea.name}) se ukončí bez uložení. Začít ${t.name}?`, 'Začít nové');
-    if (!ok) return;
-  }
-  startSession(t);
-  go('timer');
-}
-
-// ============================================================
-//  DIALOGY
-// ============================================================
-function openSheet(d) { if (!d.open) d.showModal(); }
-$$('dialog.sheet').forEach((d) => {
-  let downOnBackdrop = false;
-  d.addEventListener('pointerdown', (e) => { downOnBackdrop = e.target === d; });
-  d.addEventListener('click', (e) => { if (e.target === d && downOnBackdrop) d.close(); });
-});
-document.addEventListener('click', (e) => {
-  const c = e.target.closest('[data-close]');
-  if (c) c.closest('dialog').close();
-});
-
-let confirmResolve = null;
-function confirmBox(msg, okText = 'Ano', danger = false) {
-  return new Promise((resolve) => {
-    const d = $('#dlgConfirm');
-    $('#cfMsg').textContent = msg;
-    const ok = $('#cfOk');
-    ok.textContent = okText;
-    ok.className = 'btn ' + (danger ? 'danger' : 'primary');
-    confirmResolve = resolve;
-    openSheet(d);
-    $('#cfCancel').focus();
-  });
-}
-$('#cfOk').addEventListener('click', () => { const r = confirmResolve; confirmResolve = null; $('#dlgConfirm').close(); r && r(true); });
-$('#cfCancel').addEventListener('click', () => $('#dlgConfirm').close());
-$('#dlgConfirm').addEventListener('close', () => { const r = confirmResolve; confirmResolve = null; r && r(false); });
-
-// ----- Nastavení -----
-function renderVessel() {
-  $('#setVessel').textContent = settings.vessel;
-  const box = $('#vesselChips');
-  if (!box.children.length) {
-    box.innerHTML = [80, 100, 120, 150, 200].map((v) => `<button class="chip" data-vessel="${v}">${v} ml</button>`).join('');
-  }
-  [...box.children].forEach((b) => {
-    const on = Number(b.dataset.vessel) === settings.vessel;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-pressed', String(on));
-  });
-}
-function setVessel(v) {
-  settings.vessel = clamp(Math.round(v), 30, 1000);
-  saveSettings();
-  renderVessel();
-  if (view === 'select') renderSelect();
-  if (S) renderTimerStatic();
-}
-function openSettings(focusVessel) {
-  renderVessel();
-  $$('[data-set]').forEach((i) => { i.checked = !!settings[i.dataset.set]; });
-  $$('input[name="theme"]').forEach((r) => { r.checked = r.value === settings.theme; });
-  openSheet($('#dlgSettings'));
-  if (focusVessel) $('#dlgSettings .panel').scrollTop = 0;
-}
-$('#dlgSettings').addEventListener('click', (e) => {
-  const st = e.target.closest('[data-vstep]');
-  if (st) setVessel(settings.vessel + Number(st.dataset.vstep));
-  const ch = e.target.closest('[data-vessel]');
-  if (ch) setVessel(Number(ch.dataset.vessel));
-});
-$$('[data-set]').forEach((inp) => {
-  inp.addEventListener('change', async () => {
-    const k = inp.dataset.set;
-    if (k === 'notify' && inp.checked) {
-      let perm = 'denied';
-      try { perm = await Notification.requestPermission(); } catch (e) {}
-      if (perm !== 'granted') { inp.checked = false; toast('Oznámení nejsou v prohlížeči povolená.'); }
-    }
-    settings[k] = inp.checked;
-    saveSettings();
-    if (k === 'sound') { renderSoundBtn(); unlockAudio(); }
-    if (k === 'vibrate' && inp.checked && navigator.vibrate) navigator.vibrate(60);
-  });
-});
-$$('input[name="theme"]').forEach((r) => r.addEventListener('change', () => { settings.theme = r.value; saveSettings(); applyTheme(); }));
-$('#btnTestSound').addEventListener('click', () => { unlockAudio(); playSound(snd.chime); });
-
-function applyTheme() {
-  const t = settings.theme;
-  if (t === 'auto') delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = t;
-  const dark = t === 'dark' || (t === 'auto' && !matchMedia('(prefers-color-scheme: light)').matches);
-  $('#metaTheme').setAttribute('content', dark ? '#1a1612' : '#f3ede3');
-}
-matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
-
-// Instalace
-let installEvt = null;
-const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-if (standalone) $('#installGroup').hidden = true;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  installEvt = e;
-  $('#btnInstall').hidden = false;
-  $('#installText').textContent = 'Nainstaluj si timer jako aplikaci — poběží v samostatném okně a i bez internetu.';
-});
-$('#btnInstall').addEventListener('click', async () => {
-  if (!installEvt) return;
-  installEvt.prompt();
-  await installEvt.userChoice.catch(() => {});
-  installEvt = null;
-  $('#btnInstall').hidden = true;
-});
-window.addEventListener('appinstalled', () => { $('#installGroup').hidden = true; });
-if (!('vibrate' in navigator)) $('#rowVibrate').hidden = true;
-if (!('Notification' in window)) $('#rowNotify').hidden = true;
-
-// ----- Editor čaje -----
-const ed = { id: null, preset: false, color: SWATCHES[0], armed: false, armTimer: 0 };
-
-function edInfusions() {
-  const mode = $('input[name="edMode"]:checked').value;
-  if (mode === 'list') {
-    return ($('#edList').value.match(/\d+/g) || []).map(Number).filter((n) => n >= 1 && n <= 3600).slice(0, 30);
-  }
-  const first = clamp(parseInt($('#edFirst').value, 10) || 0, 0, 600);
-  const inc = clamp(parseInt($('#edInc').value, 10) || 0, 0, 300);
-  const count = clamp(parseInt($('#edCount').value, 10) || 0, 0, 30);
-  if (!first) return [];
-  return Array.from({ length: count }, (_, i) => first + i * inc);
-}
-function edPreview() {
-  const mode = $('input[name="edMode"]:checked').value;
-  $('#edFormula').hidden = mode !== 'formula';
-  $('#edListWrap').hidden = mode !== 'list';
-  const inf = edInfusions();
-  const total = inf.reduce((a, b) => a + b, 0);
-  $('#edPreview').innerHTML = inf.length
-    ? inf.map((s) => `<span>${fmtShort(s)}</span>`).join('') + `<span class="sum">celkem ${fmtClock(total)}</span>`
-    : '<span class="sum">Zadej alespoň jeden čas.</span>';
-  $('#edErr').hidden = true;
-}
-function renderSwatches() {
-  $('#edSwatches').innerHTML = SWATCHES.map((c) =>
-    `<label style="--c:${c}"><input type="radio" name="edColor" value="${c}" ${c === ed.color ? 'checked' : ''} aria-label="Barva ${c}"><span></span></label>`).join('');
-}
-function openEditor(id) {
-  const t = id ? teaById(id) : null;
-  ed.id = t ? id : null;
-  ed.preset = !!(t && !t.custom);
-  ed.color = t ? t.color : SWATCHES[Math.floor(Math.random() * SWATCHES.length)];
-  disarmDelete();
-  $('#edTitle').textContent = t ? (ed.preset ? `Upravit: ${t.name}` : 'Upravit čaj') : 'Nový čaj';
-  $('#edName').value = t ? t.name : '';
-  $('#edDesc').value = t ? t.desc || '' : '';
-  $('#edTmin').value = t ? t.temp[0] : 95;
-  $('#edTmax').value = t && t.temp[1] !== t.temp[0] ? t.temp[1] : '';
-  $('#edRatio').value = t ? t.ratio : 5;
-  $('#edRinse').checked = t ? !!t.rinse : false;
-  const mode = t ? (t.mode === 'formula' ? 'formula' : 'list') : 'formula';
-  $$('input[name="edMode"]').forEach((r) => { r.checked = r.value === mode; });
-  $('#edFirst').value = t && t.first ? t.first : 20;
-  $('#edInc').value = t && t.inc != null ? t.inc : 5;
-  $('#edCount').value = t && t.count ? t.count : 8;
-  $('#edList').value = t ? t.infusions.join(', ') : '';
-  const del = $('#edDelete');
-  del.hidden = !(t && (t.custom || t.edited));
-  del.textContent = ed.preset ? 'Obnovit výchozí' : 'Smazat';
-  renderSwatches();
-  edPreview();
-  openSheet($('#dlgEditor'));
-}
-function disarmDelete() {
-  ed.armed = false;
-  clearTimeout(ed.armTimer);
-  $('#edDelete').textContent = ed.preset ? 'Obnovit výchozí' : 'Smazat';
-}
-function edSave(run) {
-  const infusions = edInfusions();
-  const err = $('#edErr');
-  if (!infusions.length) { err.textContent = 'Zadej alespoň jeden čas louhování.'; err.hidden = false; return; }
-  let tmin = clamp(parseInt($('#edTmin').value, 10) || 95, 40, 100);
-  let tmax = parseInt($('#edTmax').value, 10);
-  tmax = Number.isFinite(tmax) ? clamp(tmax, 40, 100) : tmin;
-  if (tmax < tmin) [tmin, tmax] = [tmax, tmin];
-  const ratio = clamp(parseFloat(String($('#edRatio').value).replace(',', '.')) || 5, 0.5, 30);
-  const mode = $('input[name="edMode"]:checked').value;
-  const color = ($('input[name="edColor"]:checked') || {}).value || ed.color;
-  const name = $('#edName').value.trim();
-  const note = $('#edDesc').value.trim();
-  const data = {
-    name, color, temp: [tmin, tmax], ratio, rinse: $('#edRinse').checked, infusions, mode,
-    first: parseInt($('#edFirst').value, 10) || 20, inc: parseInt($('#edInc').value, 10) || 0, count: parseInt($('#edCount').value, 10) || infusions.length
-  };
-  let id = ed.id;
-  if (ed.preset) {
-    const p = PRESETS.find((x) => x.id === id);
-    data.name = name || p.name;
-    data.desc = note || p.desc;
-    const same = data.name === p.name && data.desc === p.desc && data.color === p.color && data.temp.join() === p.temp.join() &&
-      data.ratio === p.ratio && data.rinse === p.rinse && data.infusions.join() === p.infusions.join();
-    if (same) delete overrides[id]; else overrides[id] = data;
-    store.set('overrides', overrides);
-  } else {
-    data.name = name || 'Vlastní čaj';
-    data.desc = note;
-    data.custom = true;
-    data.hanzi = (/[㐀-鿿]/.exec(data.name) || [''])[0];
-    if (id) {
-      const i = customTeas.findIndex((x) => x.id === id);
-      if (i >= 0) customTeas[i] = Object.assign({ id }, data);
-      else customTeas.push(Object.assign({ id }, data));
-    } else {
-      id = 'c' + Date.now().toString(36);
-      customTeas.push(Object.assign({ id }, data));
-    }
-    store.set('custom', customTeas);
-  }
-  $('#dlgEditor').close();
-  const t = teaById(id);
-  if (run) {
-    renderSelect();
-    if (S && S.tea.id === id && !hasProgress()) { startSession(t); go('timer'); }
-    else {
-      if (S && S.tea.id === id) { S.tea = snapshot(t); saveSession(); toast('Časy louhování se projeví v příštím sezení.'); }
-      openTea(id);
-    }
-    return;
-  }
-  renderSelect();
-  if (S && S.tea.id === id) {
-    if (!hasProgress()) { startSession(t); if (view === 'timer') showView('timer'); }
-    else { S.tea = snapshot(t); saveSession(); renderTimerStatic(); toast('Uloženo · časy se projeví v příštím sezení'); return; }
-  }
-  toast('Uloženo');
-}
-$('#dlgEditor').addEventListener('input', edPreview);
-$('#dlgEditor').addEventListener('change', (e) => { if (e.target.name === 'edColor') ed.color = e.target.value; edPreview(); });
-$('#edSave').addEventListener('click', () => edSave(false));
-$('#edSaveRun').addEventListener('click', () => edSave(true));
-$('#edDelete').addEventListener('click', () => {
-  const b = $('#edDelete');
-  if (!ed.armed) {
-    ed.armed = true;
-    b.textContent = ed.preset ? 'Opravdu obnovit?' : 'Opravdu smazat?';
-    ed.armTimer = setTimeout(disarmDelete, 3500);
-    return;
-  }
-  if (ed.preset) { delete overrides[ed.id]; store.set('overrides', overrides); }
-  else { customTeas = customTeas.filter((x) => x.id !== ed.id); store.set('custom', customTeas); }
-  $('#dlgEditor').close();
-  if (S && S.tea.id === ed.id && ed.preset) { S.tea = snapshot(teaById(ed.id)); saveSession(); renderTimerStatic(); }
-  renderSelect();
-  toast(ed.preset ? 'Obnoveno na výchozí hodnoty' : 'Čaj smazán');
-});
-
-// ----- Shrnutí sezení -----
-let rating = 0;
-function resetSummaryDraft() { rating = 0; $('#sNote').value = ''; }
-function renderRating() {
-  const box = $('#sRating');
-  if (!box.children.length) {
-    box.innerHTML = [1, 2, 3, 4, 5].map((n) =>
-      `<button data-rate="${n}" role="radio" aria-label="${n} z 5">${icon('leaf')}</button>`).join('');
-  }
-  [...box.children].forEach((b, i) => {
-    b.classList.toggle('on', i < rating);
-    b.setAttribute('aria-checked', String(i + 1 === rating));
-  });
-}
-function openSummary() {
-  if (!S) return;
-  clearTimeout(tm.sum);
-  const allDone = S.done.every(Boolean);
-  const count = doneCount();
-  $('#sSeal').innerHTML = sealHTML(S.tea, 'lg');
-  $('#sTitle').textContent = allDone ? 'Sezení dokončeno' : 'Ukončit sezení?';
-  $('#sTea').textContent = S.tea.name + (S.tea.desc ? ' · ' + S.tea.desc : '');
-  $('#sCount').textContent = count;
-  $('#sSteep').textContent = fmtClock(S.steepMs / 1000);
-  $('#sDur').textContent = S.startedAt ? fmtDur((S.lastAt || Date.now()) - S.startedAt) : '—';
-  $('#sSave').disabled = count === 0;
-  $('#sSave').title = count === 0 ? 'Zatím žádné dokončené louhování' : '';
-  renderRating();
-  openSheet($('#dlgSummary'));
-}
-$('#sRating').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-rate]');
-  if (!b) return;
-  const n = Number(b.dataset.rate);
-  rating = rating === n ? 0 : n;
-  renderRating();
-});
-$('#sMore').addEventListener('click', () => {
-  $('#dlgSummary').close();
-  if (!S) return;
-  addStep();
-  if (view !== 'timer') go('timer');
-});
-$('#sSave').addEventListener('click', () => {
-  if (!S) return;
-  const start = S.startedAt || Date.now();
-  journal.unshift({
-    id: 'j' + Date.now().toString(36),
-    date: start,
-    tea: { name: S.tea.name, hanzi: S.tea.hanzi, color: S.tea.color },
-    infusions: doneCount(),
-    steepMs: S.steepMs,
-    durationMs: Math.max(0, (S.lastAt || Date.now()) - start),
-    rating,
-    note: $('#sNote').value.trim()
-  });
-  journal = journal.slice(0, 500);
-  store.set('journal', journal);
-  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-  $('#dlgSummary').close();
-  endSession();
-  toast('Uloženo do deníku');
-});
-$('#sDiscard').addEventListener('click', () => { $('#dlgSummary').close(); endSession(); });
-
-// ============================================================
-//  UDÁLOSTI
-// ============================================================
-$('#gridPresets').addEventListener('click', (e) => { const b = e.target.closest('[data-tea]'); if (b) openTea(b.dataset.tea); });
-$('#gridCustom').addEventListener('click', (e) => {
-  const edit = e.target.closest('[data-edit]');
-  if (edit) { openEditor(edit.dataset.edit); return; }
-  const b = e.target.closest('[data-tea]');
-  if (b) { openTea(b.dataset.tea); return; }
-  if (e.target.closest('[data-add]')) openEditor(null);
-});
-$('#btnSettings').addEventListener('click', () => openSettings());
-$('#btnFootVessel').addEventListener('click', () => openSettings(true));
-$('#btnJournal').addEventListener('click', () => go('journal'));
-$('#btnJBack').addEventListener('click', goBack);
-$('#rContinue').addEventListener('click', () => { unlockAudio(); go('timer'); });
-$('#rEnd').addEventListener('click', () => {
-  if (!S) return;
-  settleCurrent();
-  renderResume();
-  if (hasProgress()) openSummary(); else endSession();
-});
-
-$('#btnBack').addEventListener('click', goBack);
-$('#btnEdit').addEventListener('click', () => S && openEditor(S.tea.id));
-$('#btnSound').addEventListener('click', () => {
-  settings.sound = !settings.sound;
-  saveSettings();
-  renderSoundBtn();
-  unlockAudio();
-  toast(settings.sound ? 'Zvuk zapnutý' : 'Zvuk vypnutý');
-});
-$('#pLeafBtn').addEventListener('click', () => openSettings(true));
-$('#btnPlay').addEventListener('click', toggle);
-$('#face').addEventListener('click', toggle);
-$('#btnReset').addEventListener('click', reset);
-$('#btnNext').addEventListener('click', next);
-$('#btnMinus').addEventListener('click', () => adjust(-5));
-$('#btnPlus').addEventListener('click', () => adjust(5));
-$('#pills').addEventListener('click', (e) => {
-  const p = e.target.closest('[data-i]');
-  if (!p || !S) return;
-  if (S.phase === 'running') { toast('Nejdřív časovač pozastav.'); return; }
-  const i = Number(p.dataset.i);
-  if (i === S.idx) return;
-  settleCurrent();
-  setIdx(i);
-});
-$('#jList').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-del]');
-  if (!b) return;
-  if (!(await confirmBox('Smazat tento záznam z deníku?', 'Smazat', true))) return;
-  journal = journal.filter((x) => x.id !== b.dataset.del);
-  store.set('journal', journal);
-  renderJournal();
-});
-
-document.addEventListener('keydown', (e) => {
-  if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
-  if ($$('dialog[open]').length || view !== 'timer' || !S) return;
-  if (e.target.closest && e.target.closest('input, textarea')) return;
-  const onButton = e.target.closest && e.target.closest('button');
-  switch (e.key) {
-    case ' ':
-    case 'Enter':
-      if (onButton) return;
-      e.preventDefault(); toggle(); break;
-    case 'ArrowRight': e.preventDefault(); if (S.phase !== 'running') next(); break;
-    case 'ArrowLeft': e.preventDefault(); prev(); break;
-    case 'r': case 'R': reset(); break;
-    case '+': case '=': adjust(5); break;
-    case '-': case '−': adjust(-5); break;
-    case 'Escape': goBack(); break;
-  }
-});
-
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && S && S.phase === 'running') {
-    onTick();
-    if (S && S.phase === 'running' && view === 'timer') { cancelAnimationFrame(tm.raf); tm.raf = requestAnimationFrame(frame); }
-  }
-  wake.update();
-});
-window.addEventListener('pageshow', () => { if (S && S.phase === 'running') onTick(); });
-setInterval(() => { if (view === 'timer' && S && S.phase !== 'running') renderStats(); }, 15000);
-setInterval(() => { if (view === 'timer' && S && S.phase === 'running') renderStats(); }, 1000);
-
-// ============================================================
-//  START
-// ============================================================
-applyTheme();
-$('#ringProg').style.strokeDasharray = CIRC;
-
-// Obnovení rozpracovaného sezení (staré víc než 12 h zahodíme)
-if (S && (!S.steps || !S.steps.length || Date.now() - (S.updatedAt || 0) > 12 * 3600e3)) { S = null; saveSession(); }
-if (S && S.phase === 'running') {
-  if (S.endAt <= Date.now()) finish(true);
-  else runLoops();
-}
-if (S && store.get('view', 'select') === 'timer') {
-  if (!(history.state && history.state.v === 'timer')) {
-    history.replaceState(null, '');
-    history.pushState({ v: 'timer' }, '');
-  }
-  showView('timer');
-} else {
-  history.replaceState(null, '');
-  showView('select');
-}
-
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
-</script>
-</body>
+      <p class="dialog-intro">
+        Gongfu používá menší objem vody a několik krátkých nálevů.
+      </p>
+      <ol class="guide-steps">
+        <li>
+          <span>01</span>
+          <div>
+            <h3>Připravte nádobu</h3>
+            <p>
+              Nahřejte gaiwan nebo malou konvičku horkou vodou. Zadejte její
+              objem a odvažte vypočtené množství lístků.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span>02</span>
+          <div>
+            <h3>Zalijte a spusťte</h3>
+            <p>
+              Použijte doporučenou teplotu. Časovač spusťte se zalitím. U
+              lisovaných a pevně svinutých čajů můžete nejprve udělat krátký
+              oplach.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span>03</span>
+          <div>
+            <h3>Slijte celý nálev</h3>
+            <p>
+              Po zaznění tónu čaj zcela slijte, aby lístky dál nelouhovaly.
+              Další nálev spustíte, až budete připraveni.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span>04</span>
+          <div>
+            <h3>Upravte čas</h3>
+            <p>
+              Silný nálev zkraťte, slabý prodlužte. Přednost mají pokyny ke
+              konkrétnímu čaji.
+            </p>
+          </div>
+        </li>
+      </ol>
+      <div class="help-note">
+        <strong>Zvuk a offline režim</strong>
+        <p>
+          Průběh se ukládá automaticky. Po návratu do aplikace se čas přepočítá.
+          Pro včasný zvuk nechte aplikaci otevřenou a telefon odemčený;
+          prohlížeč na pozadí nemusí zvuk přehrát. Když to zařízení dovolí,
+          displej během odpočtu nezhasne.
+        </p>
+        <p>
+          Na iPhonu můžete v Safari zvolit Sdílet → Přidat na plochu. Po prvním
+          úplném načtení aplikace funguje i offline.
+        </p>
+      </div>
+      <button class="primary-button close-dialog full-width">Zavřít</button>
+    </dialog>
+
+    <dialog
+      id="confirmDialog"
+      aria-labelledby="confirmTitle"
+      class="dialog small-dialog"
+    >
+      <div class="dialog-head">
+        <h2 id="confirmTitle">Změnit čaj?</h2>
+        <button class="icon-button close-dialog" aria-label="Zavřít"></button>
+      </div>
+      <p id="confirmMessage" class="dialog-intro"></p>
+      <div class="dialog-actions">
+        <button class="secondary-button close-dialog">Zůstat</button
+        ><button id="confirmAction" class="primary-button">Pokračovat</button>
+      </div>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <noscript
+      ><p class="noscript">
+        Pro čajový časovač prosím zapněte JavaScript v prohlížeči.
+      </p></noscript
+    >
+  </body>
 </html>

@@ -1,113 +1,132 @@
-// Service worker: offline podpora a instalace na plochu.
-// Při změně zvuků nebo ikon zvyš VERSION, aby se stáhly nové soubory.
-const VERSION = 'gft-v2.0.0';
-const FONTS = 'gft-fonts';
-const NET_TIMEOUT = 3500;
-const CORE = [
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './sounds/chime.wav',
-  './sounds/tick.wav',
-  './sounds/silence.wav',
-  './icons/icon.svg',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png',
-  './icons/favicon-32.png'
-];
+/* Bump this version whenever the app shell changes. Updates activate only once
+   the previous version's tabs close; a brewing timer is never reloaded. */
+const CACHE_VERSION = "2026-09-26-iphone-v5";
+const CACHE_PREFIX = `tea-timer:${self.registration.scope}:`;
+const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
+const APP_SHELL = [
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./engine.mjs",
+  "./migration.mjs",
+  "./tea-scene.mjs",
+  "./assets/fonts/permanent-marker-timer.ttf",
+  "./manifest.webmanifest",
+  "./assets/tea-still-life.webp",
+  "./assets/icon.svg",
+  "./assets/icon-192.png",
+  "./assets/icon-512.png",
+  "./assets/apple-touch-icon.png",
+  "./assets/chime.wav",
+  "./assets/tick.wav",
+  "./assets/silence.wav",
+].map((path) => new URL(path, self.registration.scope).href);
+const SHELL_URLS = new Set(APP_SHELL);
+const INDEX_URL = new URL("./index.html", self.registration.scope).href;
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(VERSION)
-      .then((c) => c.addAll(CORE.map((u) => new Request(u, { cache: 'reload' }))))
-      .then(() => self.skipWaiting())
+self.addEventListener("install", (event) => {
+  // addAll is atomic and rejects non-successful responses. A missing deployment
+  // asset leaves the previous worker active instead of installing a broken shell.
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) =>
+        cache.addAll(
+          APP_SHELL.map((url) => new Request(url, { cache: "reload" })),
+        ),
+      ),
   );
 });
 
-// Mažeme jen vlastní staré cache — na stejné doméně (github.io) můžou běžet i jiné projekty.
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys
-        .filter((k) => k.startsWith('gft-') && k !== VERSION && k !== FONTS)
-        .map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    (async () => {
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter(
+            (name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME,
+          )
+          .map((name) => caches.delete(name)),
+      );
+      await self.clients.claim();
+    })(),
   );
 });
 
-function fetchWithTimeout(req, ms) {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('timeout')), ms);
-    fetch(req).then((r) => { clearTimeout(t); resolve(r); }, (err) => { clearTimeout(t); reject(err); });
-  });
+// Safari requests media in byte ranges. Serve those ranges from the complete
+// cached WAV as well, so the completion chime still plays without a connection.
+async function rangeResponse(response, range) {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+  if (!match || (!match[1] && !match[2])) return response;
+
+  const buffer = await response.arrayBuffer();
+  const size = buffer.byteLength;
+  let start = match[1]
+    ? Number(match[1])
+    : Math.max(0, size - Number(match[2]));
+  let end = match[1] && match[2] ? Number(match[2]) : size - 1;
+  end = Math.min(end, size - 1);
+  if (
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) ||
+    start < 0 ||
+    start >= size ||
+    end < start
+  ) {
+    return new Response(null, {
+      status: 416,
+      headers: { "Content-Range": `bytes */${size}` },
+    });
+  }
+  const headers = new Headers(response.headers);
+  headers.set("Content-Range", `bytes ${start}-${end}/${size}`);
+  headers.set("Content-Length", String(end - start + 1));
+  headers.set("Accept-Ranges", "bytes");
+  headers.delete("Content-Encoding");
+  return new Response(buffer.slice(start, end + 1), { status: 206, headers });
 }
 
-self.addEventListener('fetch', (e) => {
-  const req = e.request;
-  if (req.method !== 'GET' || req.headers.has('range')) return;
-  const url = new URL(req.url);
-
-  // Stránka: nejdřív síť (ať se aktualizace projeví hned), při výpadku nebo pomalé síti z cache.
-  if (req.mode === 'navigate') {
-    e.respondWith((async () => {
-      try {
-        const res = await fetchWithTimeout(req, NET_TIMEOUT);
-        const html = (res.headers.get('content-type') || '').includes('text/html');
-        if (res.ok && !res.redirected && html && url.origin === self.location.origin) {
-          const copy = res.clone();
-          e.waitUntil(caches.open(VERSION).then((c) => c.put('./index.html', copy)));
-        }
-        return res;
-      } catch (err) {
-        const hit = (await caches.match('./index.html')) || (await caches.match('./'));
-        if (hit) return hit;
-        throw err;
-      }
-    })());
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  if (
+    url.origin !== self.location.origin ||
+    !url.href.startsWith(self.registration.scope)
+  )
     return;
-  }
 
-  // Vlastní soubory (zvuky, ikony): nejdřív cache.
-  if (url.origin === self.location.origin) {
-    e.respondWith(
-      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-        if (res.ok) {
-          const copy = res.clone();
-          e.waitUntil(caches.open(VERSION).then((c) => c.put(req, copy)));
-        }
-        return res;
-      }))
-    );
-    return;
-  }
-
-  // Google Fonts: z cache a na pozadí obnovit.
-  if (/^fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) {
-    e.respondWith(
-      caches.open(FONTS).then(async (c) => {
-        const hit = await c.match(req);
-        const net = fetch(req)
-          .then((res) => {
-            if (res.ok || res.type === 'opaque') c.put(req, res.clone());
-            return res;
-          })
-          .catch(() => hit);
-        if (hit) { e.waitUntil(net); return hit; }
-        return net;
-      })
-    );
-  }
+  // Keep HTML and its scripts/styles on one version. Queries in a bookmarked
+  // start URL do not prevent opening the offline app.
+  const cacheKey = request.mode === "navigate" ? INDEX_URL : request.url;
+  if (!SHELL_URLS.has(cacheKey)) return;
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(cacheKey);
+      if (!cached) return fetch(request);
+      const range = request.headers.get("Range");
+      return range && url.pathname.endsWith(".wav")
+        ? rangeResponse(cached, range)
+        : cached;
+    })(),
+  );
 });
 
-self.addEventListener('notificationclick', (e) => {
-  e.notification.close();
-  const scope = self.registration.scope;
-  e.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      for (const c of list) if (c.url.startsWith(scope) && 'focus' in c) return c.focus();
-      return self.clients.openWindow('./');
-    })
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    (async () => {
+      const scope = self.registration.scope;
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      const existing = windows.find((client) => client.url.startsWith(scope));
+      if (existing) return existing.focus();
+      return self.clients.openWindow(scope);
+    })(),
   );
 });
